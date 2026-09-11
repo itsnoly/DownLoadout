@@ -1,0 +1,7 @@
+id=downloadout
+name=DownLoadout
+version=v2.1.0
+versionCode=210
+author=a
+description=Automated download manager and folder organizer for Shevery ADB. Features dynamic category lanes, background scheduling, custom file extensions, and real-time execution logs.
+usesShellBridge=true
