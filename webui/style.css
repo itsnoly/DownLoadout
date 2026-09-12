@@ -443,6 +443,17 @@ body {
 .console-head .ring.live { background: var(--teal-bright); animation: blink 1s infinite; }
 .console-head .chev { color: var(--ink-faint); transition: transform 0.2s var(--ease); }
 .console-head .chev.open { transform: rotate(180deg); }
+.console-expand-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; margin: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ink-faint); cursor: pointer; transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease); }
+.console-expand-btn:hover, .console-expand-btn:focus-visible { color: var(--teal-bright); border-color: var(--line); background: rgba(94, 234, 212, 0.06); outline: none; }
+.console-expand-btn:active { transform: scale(0.92); }
+
+/* Fullscreen expanded console overlay */
+.console.expanded { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; border: none; border-radius: 0; background: var(--surface); }
+.console.expanded .console-head { padding: 14px 16px; }
+.console.expanded .console-head .chev { display: none; }
+.console.expanded .console-body { max-height: none; margin: 0 14px 14px; border: 1px solid var(--line); border-radius: var(--r-lg); }
+.console.expanded .console-body.open { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.console.expanded .console-inner { padding: 6px 14px 14px; min-height: 100%; box-sizing: border-box; }
 .console-body { max-height: 0; overflow: hidden; transition: max-height 0.25s var(--ease); }
 .console-body.open { max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .console-inner { padding: 0 14px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
