@@ -1,4 +1,22 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
+  // Asynchronously load external SVG icons sprite file into the DOM
+  async function loadIcons() {
+    try {
+      const response = await fetch('icons/icons.svg');
+      if (response.ok) {
+        const svgText = await response.text();
+        const container = document.createElement('div');
+        container.style.display = 'none';
+        container.innerHTML = svgText;
+        document.body.insertBefore(container, document.body.firstChild);
+      }
+    } catch (e) {
+      console.error('Failed to load icons sprite:', e);
+    }
+  }
+
+  await loadIcons();
+
   const DEFAULT_RULES = [
     { id:'images', name:'Images', folder:'! - Images', icon:'ic-image', exts:['jpg','jpeg','png','gif','webp','svg','heic','bmp'] },
     { id:'documents', name:'Documents', folder:'! - Documents', icon:'ic-doc', exts:['pdf','doc','docx','txt','md','rtf'] },
@@ -104,7 +122,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (info && info.path) return info.path;
       }
     } catch (e) {
-      // Fallback path
+      // Fallback
     }
     return '/data/local/tmp/shevery/modules/downloadout';
   }
@@ -291,7 +309,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (res && res.ok && res.stdout && res.stdout.trim().startsWith('{')) {
           const loadedData = JSON.parse(res.stdout);
           if (loadedData && Array.isArray(loadedData.rules)) {
-            // Filter out legacy "others" rules if present in existing configuration
             loadedData.rules = loadedData.rules.filter(r => r.id !== 'others');
             configData = loadedData;
             configData.target_folder = '/storage/emulated/0/Download';

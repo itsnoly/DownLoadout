@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
-
 :root {
   --bg: #070b0d;
   --surface: #0e161a;
@@ -23,7 +21,7 @@
   --danger: #ff7a7a;
   --ok: #6ee7b7;
 
-  /* Neon Category SVG Colors */
+  /* Category Specific SVG Colors */
   --cat-images: #ff8fc7;
   --cat-documents: #5eead4;
   --cat-spreadsheets: #6ee7b7;
@@ -61,7 +59,7 @@ html {
   scroll-behavior: auto;
   background: var(--bg); 
   color: var(--ink); 
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
@@ -79,7 +77,7 @@ body {
 }
 
 .mono { 
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; 
 }
 
 .bg-wash {
@@ -248,12 +246,12 @@ body {
 .path-display-wrap { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .folder-read-only {
   flex: 1; background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--r-sm);
-  color: var(--teal-bright); font-size: 0.72rem; padding: 6px 8px; font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  color: var(--teal-bright); font-size: 0.72rem; padding: 6px 8px; font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600;
   user-select: none;
 }
 .path-clean-badge {
   font-size: 0.65rem; font-weight: 700; color: #052321; background: var(--teal-bright);
-  padding: 4px 8px; border-radius: var(--r-sm); font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+  padding: 4px 8px; border-radius: var(--r-sm); font-family: ui-monospace, SFMono-Regular, monospace; flex-shrink: 0;
   display: flex; align-items: center; gap: 4px;
 }
 
@@ -288,7 +286,7 @@ body {
 .custom-interval-wrap { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
 .custom-input {
   flex: 1; background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 10px 12px; color: var(--ink); font-size: 0.8rem; outline: none; font-family: 'JetBrains Mono', monospace;
+  padding: 10px 12px; color: var(--ink); font-size: 0.8rem; outline: none; font-family: ui-monospace, SFMono-Regular, monospace;
 }
 .custom-input:focus { border-color: var(--teal); }
 .custom-hint { font-size: 0.65rem; color: var(--ink-faint); }
@@ -389,14 +387,14 @@ body {
 .lane-folder-edit .prefix { font-size: 0.65rem; color: var(--teal); font-weight: 700; }
 .lane-folder-edit input {
   flex: 1; min-width: 0; background: none; border: none; outline: none;
-  color: var(--teal-bright); font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  color: var(--teal-bright); font-size: 0.7rem; font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600;
 }
 
 .lane-chips { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .lane-chip {
   display: flex; align-items: center; gap: 6px; font-size: 0.7rem;
   background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 5px 8px; color: var(--ink-dim); font-family: 'JetBrains Mono', monospace;
+  padding: 5px 8px; color: var(--ink-dim); font-family: ui-monospace, SFMono-Regular, monospace;
 }
 .lane-chip .rm { margin-left: auto; cursor: pointer; color: var(--ink-faint); }
 .lane-chip .rm:hover { color: var(--danger); }
@@ -405,7 +403,7 @@ body {
 .lane-add-row { display: flex; gap: 6px; }
 .lane-add-row input {
   flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 7px 8px; color: var(--ink); font-size: 0.7rem; outline: none; font-family: 'JetBrains Mono', monospace;
+  padding: 7px 8px; color: var(--ink); font-size: 0.7rem; outline: none; font-family: ui-monospace, SFMono-Regular, monospace;
 }
 .lane-add-row input:focus { border-color: var(--teal); }
 .lane-add-row button {
@@ -449,7 +447,6 @@ body {
 .console-body.open { max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .console-inner { padding: 0 14px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
 
-/* ENFORCED WORD WRAPPING AND SCREEN FIT RULES FOR LOGS */
 .log-line { 
   display: flex; 
   align-items: flex-start; 
