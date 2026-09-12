@@ -65,9 +65,31 @@ document.addEventListener("DOMContentLoaded", async function () {
   const addCategoryCard = el('addCategoryCard'), closeAddCatCardBtn = el('closeAddCatCardBtn'), presetGrid = el('presetGrid'), predefinedSection = el('predefinedSection');
   const CIRC = 264;
 
-  function iconSvg(name, catId) { 
-    const colorClass = catId ? `cat-${catId}` : (name || 'ic-file');
-    return `<svg class="icon ${colorClass}"><use href="#${name}"/></svg>`; 
+  // Settings live in their own dedicated directory (public, under Download),
+  // replacing the old hidden /sdcard/.down-loadout dot-folder.
+  const SETTINGS_DIR = '/storage/emulated/0/Download/DownLoadout';
+  const LEGACY_SETTINGS_DIR = '/storage/emulated/0/.down-loadout';
+  const FOLDER_SAFE_RE = /^[A-Za-z0-9 _,.!-]*$/;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Folder names become shell arguments; restrict to a safe charset.
+  function safeFolderName(v) {
+    return String(v || '').trim().replace(/[\/\\]/g, '_').replace(/[^A-Za-z0-9 _,.!-]/g, '_');
+  }
+
+  // Extension tokens become shell + config tokens; restrict to [a-z0-9_].
+  function safeExt(v) {
+    return String(v || '').trim().toLowerCase().replace(/^\./, '').replace(/[^a-z0-9_]/g, '');
+  }
+
+  function iconSvg(name, catId) {
+    const safeIcon = /^ic-[a-z0-9-]+$/.test(name || '') ? name : 'ic-file';
+    const safeCat = String(catId || 'file').replace(/[^A-Za-z0-9_-]+/g, '');
+    const colorClass = catId ? `cat-${safeCat}` : safeIcon;
+    return `<svg class="icon ${colorClass}"><use href="#${safeIcon}"/></svg>`;
   }
 
   function log(msg, type) {
@@ -80,7 +102,17 @@ document.addEventListener("DOMContentLoaded", async function () {
       wrap.className = 'log-line ' + (type || 'info');
       const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
       const iconName = type === 'ok' ? 'ic-check' : type === 'err' ? 'ic-alert' : 'ic-file';
-      wrap.innerHTML = `<svg class="icon sm"><use href="#${iconName}"/></svg><span class="t">${t}</span><span class="txt">${line}</span>`;
+      const iconSpan = document.createElement('span');
+      iconSpan.innerHTML = `<svg class="icon sm" aria-hidden="true"><use href="#${iconName}"/></svg>`;
+      const tSpan = document.createElement('span');
+      tSpan.className = 't';
+      tSpan.textContent = t;
+      const txtSpan = document.createElement('span');
+      txtSpan.className = 'txt';
+      txtSpan.textContent = line; // textContent: shell output (filenames) must never be parsed as HTML
+      wrap.appendChild(iconSpan);
+      wrap.appendChild(tSpan);
+      wrap.appendChild(txtSpan);
       consoleInner.appendChild(wrap);
     });
     consoleBody.classList.add('open');
@@ -289,12 +321,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     const jsonStr = JSON.stringify(configData, null, 2);
     const escapedJson = jsonStr.replace(/'/g, "'\\''");
-    const saveCmd = `mkdir -p /storage/emulated/0/.down-loadout && printf %s '${escapedJson}' > /storage/emulated/0/.down-loadout/conveyor_config.json`;
+    const saveCmd = `mkdir -p ${SETTINGS_DIR} && printf %s '${escapedJson}' > ${SETTINGS_DIR}/conveyor_config.json && rm -f ${LEGACY_SETTINGS_DIR}/conveyor_config.json`;
     
     setTimeout(() => {
       const res = shellExec(saveCmd);
       if (res && res.ok) {
-        log('Configuration saved to /storage/emulated/0/.down-loadout/conveyor_config.json', 'info');
+        log('Configuration saved to ' + SETTINGS_DIR + '/conveyor_config.json', 'info');
       } else {
         log('Auto-save warning: ' + (res ? res.stderr : 'Execution failed'), 'err');
       }
@@ -303,7 +335,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   function loadModuleConfigAsync() {
     setTimeout(() => {
-      const loadCmd = `cat /storage/emulated/0/.down-loadout/conveyor_config.json 2>/dev/null`;
+      // Settings live in their own directory under Download; migrate the
+      // legacy hidden dot-folder location on first load (mirrors action.sh).
+      const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
       try {
         const res = shellExec(loadCmd);
         if (res && res.ok && res.stdout && res.stdout.trim().startsWith('{')) {
@@ -315,19 +349,19 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (customIntervalInput && configData.custom_interval) {
               customIntervalInput.value = configData.custom_interval;
             }
-            log('Configuration loaded from /storage/emulated/0/.down-loadout/', 'ok');
+            log('Configuration loaded from ' + SETTINGS_DIR + '/', 'ok');
             updateTogglesUI();
             renderHoursTabs();
             renderDaysTabs();
             renderLanes();
             updateStats();
             performScan();
+            return;
           }
-        } else {
-          log('Initial setup: Initializing config at /storage/emulated/0/.down-loadout/', 'info');
-          autoSaveConfig();
-          performScan();
         }
+        log('Initial setup: Initializing config at ' + SETTINGS_DIR + '/', 'info');
+        autoSaveConfig();
+        performScan();
       } catch(e) {
         autoSaveConfig();
       }
@@ -352,8 +386,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!cat || !newFolderVal.trim()) return;
     
     const oldFolder = cat.folder;
-    const cleanNewFolder = newFolderVal.trim().replace(/[\/\\]/g, '_');
-    
+    const cleanNewFolder = safeFolderName(newFolderVal);
+
+    // Old names from a tampered config are interpolated into the mv/cd command,
+    // so they must pass validation too.
+    if (cleanNewFolder && !FOLDER_SAFE_RE.test(oldFolder || '')) {
+      log('Rename skipped: current folder name contains unsupported characters.', 'err');
+      return;
+    }
+
     if (oldFolder && cleanNewFolder && oldFolder !== cleanNewFolder) {
       const targetDir = '/storage/emulated/0/Download';
       const renameCmd = `
@@ -381,23 +422,30 @@ fi
       const lane = document.createElement('div');
       lane.className = 'lane';
       const chipsHtml = cat.exts.length
-        ? cat.exts.map(e => `<div class="lane-chip">${iconSvg(cat.icon || 'ic-file', cat.id)}<span>.${e}</span><span class="rm" data-del-ext="${cat.id}:${e}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`).join('')
+        ? cat.exts.map(e => {
+            const safeExt = esc(e);
+            const safeCatId = esc(cat.id);
+            return `<div class="lane-chip">${iconSvg(cat.icon || 'ic-file', cat.id)}<span>.${safeExt}</span><span class="rm" role="button" aria-label="Remove extension ${safeExt}" data-del-ext="${safeCatId}:${safeExt}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`;
+          }).join('')
         : `<div class="lane-empty">no extensions configured</div>`;
       
+      const safeName = esc(cat.name);
+      const safeFolder = esc(cat.folder);
+      const safeCatId2 = esc(cat.id);
       lane.innerHTML = `
         <div class="lane-head">
           ${iconSvg(cat.icon || 'ic-file', cat.id)}
-          <span class="name">${cat.name}</span>
-          <span class="del" data-del-cat="${cat.id}"><svg class="icon sm"><use href="#ic-trash"/></svg></span>
+          <span class="name">${safeName}</span>
+          <span class="del" role="button" aria-label="Delete category ${safeName}" data-del-cat="${safeCatId2}"><svg class="icon sm"><use href="#ic-trash"/></svg></span>
         </div>
         <div class="lane-folder-edit">
           <span class="prefix">/</span>
-          <input type="text" value="${cat.folder}" data-folder-edit="${cat.id}" placeholder="Folder Name">
+          <input type="text" value="${safeFolder}" data-folder-edit="${safeCatId2}" placeholder="Folder Name">
         </div>
         <div class="lane-chips">${chipsHtml}</div>
         <div class="lane-add-row">
-          <input placeholder="+ extension" data-quick-input="${cat.id}">
-          <button data-quick-add="${cat.id}"><svg class="icon sm"><use href="#ic-plus"/></svg></button>
+          <input placeholder="+ extension" data-quick-input="${safeCatId2}">
+          <button aria-label="Add extension" data-quick-add="${safeCatId2}"><svg class="icon sm"><use href="#ic-plus"/></svg></button>
         </div>
       `;
       lanesScroll.appendChild(lane);
@@ -405,6 +453,8 @@ fi
 
     const addLane = document.createElement('div');
     addLane.className = 'lane-new';
+    addLane.setAttribute('role', 'button');
+    addLane.setAttribute('aria-label', 'Add category');
     addLane.innerHTML = '<svg class="icon"><use href="#ic-plus"/></svg><span>Add Category</span>';
     addLane.onclick = () => openAddCategoryInlineCard();
     lanesScroll.appendChild(addLane);
@@ -445,7 +495,7 @@ fi
       const id = b.dataset.quickAdd;
       const input = lanesScroll.querySelector(`[data-quick-input="${id}"]`);
       if (input) {
-        const val = input.value.trim().toLowerCase().replace(/^\./,'');
+        const val = safeExt(input.value);
         if (val) {
           const cat = configData.rules.find(c => c.id === id);
           if (cat && !cat.exts.includes(val)) cat.exts.push(val);
@@ -473,8 +523,8 @@ fi
         const card = document.createElement('div');
         card.className = 'preset-card';
         card.innerHTML = `
-          <div class="preset-card-top">${iconSvg(preset.icon || 'ic-file', preset.id)}${preset.name}</div>
-          <div class="preset-card-sub">/${preset.folder} · .${preset.exts.slice(0,3).join(', .')}</div>
+          <div class="preset-card-top">${iconSvg(preset.icon || 'ic-file', preset.id)}${esc(preset.name)}</div>
+          <div class="preset-card-sub">/${esc(preset.folder)} · .${esc(preset.exts.slice(0,3).join(', .'))}</div>
         `;
         card.onclick = () => {
           const newCat = JSON.parse(JSON.stringify(preset));
@@ -510,7 +560,8 @@ fi
       const name = el('newCatName') ? el('newCatName').value.trim() : '';
       let folder = el('newCatFolder') ? el('newCatFolder').value.trim() || name : name;
       if (!folder.startsWith('! - ')) folder = '! - ' + folder;
-      const exts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => s.trim().toLowerCase().replace(/^\./,'')).filter(Boolean) : [];
+      folder = safeFolderName(folder);
+      const exts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => safeExt(s)).filter(Boolean) : [];
       if (!name) return;
       const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Math.random().toString(36).slice(2,6);
       configData.rules.push({ id, name, folder, exts, icon: 'ic-file' });
@@ -535,13 +586,13 @@ fi
     const destFolders = [];
 
     configData.rules.forEach(r => {
-      if (r.folder) destFolders.push(r.folder);
+      if (r.folder && FOLDER_SAFE_RE.test(r.folder)) destFolders.push(r.folder);
       r.exts.forEach(e => validExts.add(e.toLowerCase()));
     });
 
     const folder = '/storage/emulated/0/Download';
     const pruneExpr = destFolders.map(df => `-name "${df}"`).join(' -o ');
-    const pruneCmd = pruneExpr ? `\\( -name ".*" -o ${pruneExpr} \\) -prune -o` : `\\( -name ".*" \\) -prune -o`;
+    const pruneCmd = pruneExpr ? `\\( -name ".?*" -o ${pruneExpr} \\) -prune -o` : `\\( -name ".?*" \\) -prune -o`;
     
     const findCmd = configData.include_subdirs 
       ? `find "${folder}" ${pruneCmd} -type f -print`

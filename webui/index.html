@@ -216,10 +216,10 @@
       <svg class="icon sm" style="color:var(--teal)"><use href="#ic-doc"/></svg>
       <h2>Logs & Console</h2>
       <span class="ring" id="consoleRing"></span>
-      <svg class="icon sm chev open" id="consoleChev"><use href="#ic-chev"/></svg>
+      <svg class="icon sm chev open" id="consoleChev" aria-label="Toggle logs"><use href="#ic-chev"/></svg>
     </div>
     <div class="console-body open" id="consoleBody">
-      <div class="console-inner mono" id="consoleInner">
+      <div class="console-inner mono" id="consoleInner" role="log" aria-live="polite">
         <div class="log-line info"><svg class="icon sm"><use href="#ic-file"/></svg><span class="txt">Connected to Shevery ADB Shell Bridge.</span></div>
       </div>
     </div>
