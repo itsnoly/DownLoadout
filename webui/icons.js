@@ -1,84 +1,55 @@
+/**
+ * DownLoadout - Vector Icon Sprite Registry
+ * Injected directly into DOM to eliminate file:// fetch CORS errors in WebViews.
+ */
+(function () {
+  const SPRITE_DATA = `
 <svg width="0" height="0" style="position:absolute;display:none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Teal accent gradient used for stats progress ring and branding -->
     <linearGradient id="tealGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#39c5bb"/>
       <stop offset="100%" stop-color="#5eead4"/>
     </linearGradient>
 
-    <!-- Folder Icon: Represents target directory path and folder inclusion toggle -->
     <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></symbol>
-
-    <!-- Refresh Icon: Represents scanning directory files and resetting settings -->
     <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 0 18.5 15.5"/><path d="M20 5v6h-6"/></symbol>
-
-    <!-- Magic Wand Icon: Represents triggering the organization action engine -->
     <symbol id="ic-wand" viewBox="0 0 24 24"><path d="M15 4l1.2 2.8L19 8l-2.8 1.2L15 12l-1.2-2.8L11 8l2.8-1.2L15 4z"/><path d="M5 14l6 6"/><path d="M9 20l1.5-1.5"/><path d="M3 22l4-4"/></symbol>
-
-    <!-- Trash Icon: Represents deleting category lanes or removing extensions -->
     <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></symbol>
-
-    <!-- Plus Icon: Represents adding new category rules or quick extension tags -->
     <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-
-    <!-- Cross/X Icon: Represents closing inline modal cards or dismissing items -->
     <symbol id="ic-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
-
-    <!-- Checkmark Icon: Represents success states, completed status, and completed counts -->
     <symbol id="ic-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></symbol>
-
-    <!-- Alert Triangle Icon: Represents warning messages, errors, and reset confirmations -->
     <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></symbol>
-
-    <!-- Dots Icon: Represents vertical header options menu button -->
     <symbol id="ic-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></symbol>
-
-    <!-- Image Icon: Represents image media extensions (JPG, PNG, GIF, WebP, etc.) -->
     <symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-4 4-2-2-6 6"/></symbol>
-
-    <!-- Document Icon: Represents document file formats (PDF, DOCX, TXT, MD, etc.) -->
     <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></symbol>
-
-    <!-- Video Icon: Represents video media file formats (MP4, MKV, AVI, WebM, etc.) -->
     <symbol id="ic-video" viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/></symbol>
-
-    <!-- Music Icon: Represents audio media file formats (MP3, WAV, FLAC, M4A, etc.) -->
     <symbol id="ic-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
-
-    <!-- Archive Icon: Represents compressed archives (ZIP, RAR, 7Z, TAR, GZ, etc.) -->
     <symbol id="ic-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></symbol>
-
-    <!-- Package Box Icon: Represents software installer files (APK, DEB, EXE, DMG, etc.) -->
     <symbol id="ic-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
-
-    <!-- Generic File Icon: Represents general files and default category fallback -->
     <symbol id="ic-file" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3"/></symbol>
-
-    <!-- Layers Icon: Represents active categories stat count and conveyor lanes -->
     <symbol id="ic-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
-
-    <!-- Clock Icon: Represents automated scheduling interval settings -->
     <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
-
-    <!-- Code Icon: Represents programming source code files (JS, PY, HTML, CPP, etc.) -->
     <symbol id="ic-code" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></symbol>
-
-    <!-- Spreadsheet Grid Icon: Represents tabular spreadsheet documents (XLSX, CSV, etc.) -->
     <symbol id="ic-sheet" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
-
-    <!-- Gear Settings Icon: Represents fine-grained custom interval settings -->
     <symbol id="ic-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
-
-    <!-- Chevron Arrow Icon: Represents collapsible console log drawer arrow -->
     <symbol id="ic-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
-
-    <!-- Terminal Prompt Icon: Represents toggling execution log visibility -->
     <symbol id="ic-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
-
-    <!-- Expand Icon: Diagonal arrows outward, represents expanding logs to full screen -->
     <symbol id="ic-expand" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></symbol>
-
-    <!-- Collapse Icon: Diagonal arrows inward, represents exiting full screen logs -->
     <symbol id="ic-collapse" viewBox="0 0 24 24"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 14l7-7"/><path d="M10 10L3 17"/></symbol>
   </defs>
 </svg>
+`;
+
+  function init() {
+    const holder = document.createElement("div");
+    holder.style.display = "none";
+    holder.innerHTML = SPRITE_DATA;
+    document.body.insertBefore(holder, document.body.firstChild);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
