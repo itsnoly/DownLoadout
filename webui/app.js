@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", function () {
     { id:'ebooks', name:'eBooks', folder:'! - eBooks', icon:'ic-doc', exts:['epub','mobi','azw3','djvu'] }
   ];
 
+  const DEFAULT_ACTIVE_IDS = ['images', 'documents', 'spreadsheets', 'videos', 'audio', 'archives'];
+
   let configData = {
     target_folder: '/storage/emulated/0/Download',
     schedule_hours: 0,
@@ -21,7 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
     show_console_logs: true,
     active_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     last_run: 0,
-    rules: JSON.parse(JSON.stringify(DEFAULT_RULES.slice(0, 7))).concat([{ id:'others', name:'Others', folder:'! - Others', icon:'ic-file', exts:[] }])
+    rules: JSON.parse(JSON.stringify(DEFAULT_RULES.filter(r => DEFAULT_ACTIVE_IDS.includes(r.id))))
   };
 
   let scannedTotalFiles = 0;
@@ -50,13 +52,12 @@ document.addEventListener("DOMContentLoaded", function () {
     return `<svg class="icon ${colorClass}"><use href="#${name}"/></svg>`; 
   }
 
-  // HIGH-DETAIL LOGGING ENGINE: Splits lines and strips Carriage Returns (\r) to stop vertical spacing gaps
   function log(msg, type) {
     if (!consoleInner || !consoleBody) return;
     const cleanMsg = String(msg).replace(/\r/g, '');
     const lines = cleanMsg.split('\n');
     lines.forEach(line => {
-      if (!line.trim() && lines.length > 1) return; // skips vertical spaces
+      if (!line.trim() && lines.length > 1) return;
       const wrap = document.createElement('div');
       wrap.className = 'log-line ' + (type || 'info');
       const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -103,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (info && info.path) return info.path;
       }
     } catch (e) {
-      // Fallback
+      // Fallback path
     }
     return '/data/local/tmp/shevery/modules/downloadout';
   }
@@ -170,7 +171,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (confirmResetBtn) {
     confirmResetBtn.onclick = () => {
-      configData.rules = JSON.parse(JSON.stringify(DEFAULT_RULES.slice(0, 7))).concat([{ id:'others', name:'Others', folder:'! - Others', icon:'ic-file', exts:[] }]);
+      configData.rules = JSON.parse(JSON.stringify(DEFAULT_RULES.filter(r => DEFAULT_ACTIVE_IDS.includes(r.id))));
       configData.schedule_hours = 0;
       configData.custom_interval = '';
       configData.include_subdirs = false;
@@ -290,6 +291,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (res && res.ok && res.stdout && res.stdout.trim().startsWith('{')) {
           const loadedData = JSON.parse(res.stdout);
           if (loadedData && Array.isArray(loadedData.rules)) {
+            // Filter out legacy "others" rules if present in existing configuration
+            loadedData.rules = loadedData.rules.filter(r => r.id !== 'others');
             configData = loadedData;
             configData.target_folder = '/storage/emulated/0/Download';
             if (customIntervalInput && configData.custom_interval) {
@@ -362,24 +365,23 @@ fi
       lane.className = 'lane';
       const chipsHtml = cat.exts.length
         ? cat.exts.map(e => `<div class="lane-chip">${iconSvg(cat.icon || 'ic-file', cat.id)}<span>.${e}</span><span class="rm" data-del-ext="${cat.id}:${e}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`).join('')
-        : `<div class="lane-empty">receives remaining files</div>`;
+        : `<div class="lane-empty">no extensions configured</div>`;
       
       lane.innerHTML = `
         <div class="lane-head">
           ${iconSvg(cat.icon || 'ic-file', cat.id)}
           <span class="name">${cat.name}</span>
-          ${cat.id !== 'others' ? `<span class="del" data-del-cat="${cat.id}"><svg class="icon sm"><use href="#ic-trash"/></svg></span>` : ''}
+          <span class="del" data-del-cat="${cat.id}"><svg class="icon sm"><use href="#ic-trash"/></svg></span>
         </div>
         <div class="lane-folder-edit">
           <span class="prefix">/</span>
           <input type="text" value="${cat.folder}" data-folder-edit="${cat.id}" placeholder="Folder Name">
         </div>
         <div class="lane-chips">${chipsHtml}</div>
-        ${cat.id !== 'others' ? `
         <div class="lane-add-row">
           <input placeholder="+ extension" data-quick-input="${cat.id}">
           <button data-quick-add="${cat.id}"><svg class="icon sm"><use href="#ic-plus"/></svg></button>
-        </div>` : ''}
+        </div>
       `;
       lanesScroll.appendChild(lane);
     });
@@ -458,10 +460,8 @@ fi
           <div class="preset-card-sub">/${preset.folder} · .${preset.exts.slice(0,3).join(', .')}</div>
         `;
         card.onclick = () => {
-          const targetIndex = configData.rules.findIndex(c => c.id === 'others');
           const newCat = JSON.parse(JSON.stringify(preset));
-          if (targetIndex !== -1) configData.rules.splice(targetIndex, 0, newCat);
-          else configData.rules.push(newCat);
+          configData.rules.push(newCat);
 
           autoSaveConfig();
           renderLanes();
@@ -496,7 +496,7 @@ fi
       const exts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => s.trim().toLowerCase().replace(/^\./,'')).filter(Boolean) : [];
       if (!name) return;
       const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Math.random().toString(36).slice(2,6);
-      configData.rules.splice(configData.rules.length - 1, 0, { id, name, folder, exts, icon: 'ic-file' });
+      configData.rules.push({ id, name, folder, exts, icon: 'ic-file' });
       if (el('newCatName')) el('newCatName').value = ''; 
       if (el('newCatFolder')) el('newCatFolder').value = ''; 
       if (el('newCatExts')) el('newCatExts').value = '';
@@ -516,11 +516,9 @@ fi
 
     const validExts = new Set();
     const destFolders = [];
-    let hasOthers = false;
 
     configData.rules.forEach(r => {
       if (r.folder) destFolders.push(r.folder);
-      if (r.id === 'others' || r.exts.length === 0) hasOthers = true;
       r.exts.forEach(e => validExts.add(e.toLowerCase()));
     });
 
@@ -551,7 +549,7 @@ fi
           if (stemMatch) effectiveExt = stemMatch[1].toLowerCase();
         }
 
-        if (hasOthers || validExts.has(effectiveExt)) {
+        if (validExts.has(effectiveExt)) {
           count++;
         }
       });
@@ -580,7 +578,6 @@ fi
       log('Applying rules and moving files via action engine...', 'info');
 
       const modulePath = getModulePath();
-      // Runs the action script with path fallbacks
       const actionCmd = `sh "${modulePath}/action.sh" 2>&1 || sh /storage/emulated/0/.down-loadout/action.sh 2>&1 || sh /sdcard/.down-loadout/action.sh 2>&1`;
       
       log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
@@ -588,7 +585,6 @@ fi
 
       const res = shellExec(actionCmd);
 
-      // Detailed line-by-line formatted debugging logs
       if (res) {
         log(`[DEBUG] Shizuku Exit Code: ${res.exitCode}`, res.ok ? 'info' : 'err');
         if (res.stdout) {
@@ -622,13 +618,10 @@ fi
     };
   }
 
-  // Initial State Rendering
   updateTogglesUI();
   renderHoursTabs();
   renderDaysTabs();
   renderLanes();
   updateStats();
-
-  // Async Config Loading
   loadModuleConfigAsync();
 });

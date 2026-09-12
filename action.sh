@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# DowvnLoadout - Core Organizer Engine for Shevery ADB
+# DownLoadout - Core Organizer Engine for Shevery ADB
 
 export TMPDIR=/data/local/tmp
 CONFIG_DIR="/storage/emulated/0/.down-loadout"
@@ -10,7 +10,7 @@ if [ ! -d "$CONFIG_DIR" ]; then
     CONFIG_FILE="$CONFIG_DIR/conveyor_config.json"
 fi
 
-# Initialize default configuration if missing
+# Initialize default configurations if missing
 if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$CONFIG_DIR" 2>/dev/null
     cat > "$CONFIG_FILE" << 'EOF'
@@ -26,15 +26,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
     {"id":"images","name":"Images","folder":"! - Images","icon":"ic-image","exts":["jpg","jpeg","png","gif","webp","svg","heic","bmp"]},
     {"id":"documents","name":"Documents","folder":"! - Documents","icon":"ic-doc","exts":["pdf","doc","docx","txt","md","rtf"]},
     {"id":"spreadsheets","name":"Spreadsheets","folder":"! - Spreadsheets","icon":"ic-sheet","exts":["xls","xlsx","csv","numbers"]},
-    {"id":"presentations","name":"Presentations","folder":"! - Presentations","icon":"ic-doc","exts":["ppt","pptx","key"]},
     {"id":"videos","name":"Videos","folder":"! - Videos","icon":"ic-video","exts":["mp4","mov","avi","mkv","webm"]},
     {"id":"audio","name":"Audio","folder":"! - Audio","icon":"ic-music","exts":["mp3","wav","flac","m4a","ogg"]},
-    {"id":"archives","name":"Archives","folder":"! - Archives","icon":"ic-archive","exts":["zip","rar","7z","tar","gz","bz2","xz","iso","tgz"]},
-    {"id":"installers","name":"Installers","folder":"Installers","icon":"ic-box","exts":["exe","msi","dmg","pkg","deb","apk"]},
-    {"id":"code","name":"Code & Scripts","folder":"! - Code","icon":"ic-code","exts":["js","html","css","py","json","ts","php","cpp"]},
-    {"id":"design","name":"Design Files","folder":"! - Design","icon":"ic-image","exts":["psd","ai","fig","sketch","xd","blend"]},
-    {"id":"ebooks","name":"eBooks","folder":"! - eBooks","icon":"ic-doc","exts":["epub","mobi","azw3","djvu"]},
-    {"id":"others","name":"Others","folder":"! - Others","icon":"ic-file","exts":[]}
+    {"id":"archives","name":"Archives","folder":"! - Archives","icon":"ic-archive","exts":["zip","rar","7z","tar","gz","bz2","xz","iso","tgz"]}
   ]
 }
 EOF
@@ -56,9 +50,6 @@ echo "[INFO] Monitored target directory: $TARGET_DIR"
 INCLUDE_SUBDIRS=$(grep -o '"include_subdirs"[[:space:]]*:[[:space:]]*[a-z]*' "$CONFIG_FILE" | grep -o 'true\|false' || echo "false")
 DEST_FOLDERS=$(grep -o '"folder"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" | sed -E 's/"folder"[[:space:]]*:[[:space:]]*"([^"]*)"/\1/')
 
-DEFAULT_DEST="! - Others"
-HAS_OTHERS_RULE=0
-
 eval $(awk -v RS='}' '
   /"id"[[:space:]]*:[[:space:]]*"[^"]*"/ {
     r_id = ""; r_folder = "";
@@ -75,11 +66,6 @@ eval $(awk -v RS='}' '
       sub(/.*"folder"[[:space:]]*:[[:space:]]*"/, "", str);
       sub(/".*/, "", str);
       r_folder = str;
-    }
-    
-    if (r_id == "others" && r_folder != "") {
-      print "DEFAULT_DEST=\"" r_folder "\""
-      print "HAS_OTHERS_RULE=1"
     }
     
     if (match($0, /"exts"[[:space:]]*:[[:space:]]*\[[^\]]*\]/)) {
@@ -161,13 +147,9 @@ eval "$FIND_CMD" | while IFS= read -r filepath; do
         fi
     fi
 
-    # If no mapping found and "Others" rule is disabled, ignore the file
+    # Ignore unmapped files when no category rule matches
     if [ -z "$dest" ]; then
-        if [ "$HAS_OTHERS_RULE" -eq 1 ]; then
-            dest="$DEFAULT_DEST"
-        else
-            continue
-        fi
+        continue
     fi
 
     mkdir -p "$dest"
