@@ -50,14 +50,20 @@ document.addEventListener("DOMContentLoaded", function () {
     return `<svg class="icon ${colorClass}"><use href="#${name}"/></svg>`; 
   }
 
+  // HIGH-DETAIL LOGGING ENGINE: Splits lines and strips Carriage Returns (\r) to stop vertical spacing gaps
   function log(msg, type) {
     if (!consoleInner || !consoleBody) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'log-line ' + (type || 'info');
-    const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    const iconName = type === 'ok' ? 'ic-check' : type === 'err' ? 'ic-alert' : 'ic-file';
-    wrap.innerHTML = `<svg class="icon sm"><use href="#${iconName}"/></svg><span class="t">${t}</span><span class="txt">${msg}</span>`;
-    consoleInner.appendChild(wrap);
+    const cleanMsg = String(msg).replace(/\r/g, '');
+    const lines = cleanMsg.split('\n');
+    lines.forEach(line => {
+      if (!line.trim() && lines.length > 1) return; // skips vertical spaces
+      const wrap = document.createElement('div');
+      wrap.className = 'log-line ' + (type || 'info');
+      const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      const iconName = type === 'ok' ? 'ic-check' : type === 'err' ? 'ic-alert' : 'ic-file';
+      wrap.innerHTML = `<svg class="icon sm"><use href="#${iconName}"/></svg><span class="t">${t}</span><span class="txt">${line}</span>`;
+      consoleInner.appendChild(wrap);
+    });
     consoleBody.classList.add('open');
     if (consoleChev) consoleChev.classList.add('open');
     consoleBody.scrollTop = consoleBody.scrollHeight;
@@ -78,11 +84,28 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       const fullCmd = `export TMPDIR=/data/local/tmp; ${cmd}`;
       const res = JSON.parse(window.Shizuku.exec(fullCmd));
+      if (res && typeof res.ok === 'undefined') {
+        res.ok = (res.exitCode === 0);
+      }
       return res;
     } catch(err) {
       log('Shell execution error: ' + err.message, 'err');
       return { ok: false, stdout: '', stderr: err.message };
     }
+  }
+
+  function getModulePath() {
+    if (!window.Shizuku) return '';
+    try {
+      const infoStr = window.Shizuku.getModuleInfo();
+      if (infoStr) {
+        const info = JSON.parse(infoStr);
+        if (info && info.path) return info.path;
+      }
+    } catch (e) {
+      // Fallback
+    }
+    return '/data/local/tmp/shevery/modules/downloadout';
   }
 
   function parseCustomInterval(inputStr) {
@@ -251,10 +274,10 @@ document.addEventListener("DOMContentLoaded", function () {
     
     setTimeout(() => {
       const res = shellExec(saveCmd);
-      if (res.ok) {
+      if (res && res.ok) {
         log('Configuration saved to /storage/emulated/0/.down-loadout/conveyor_config.json', 'info');
       } else {
-        log('Auto-save warning: ' + res.stderr, 'err');
+        log('Auto-save warning: ' + (res ? res.stderr : 'Execution failed'), 'err');
       }
     }, 10);
   }
@@ -264,7 +287,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const loadCmd = `cat /storage/emulated/0/.down-loadout/conveyor_config.json 2>/dev/null`;
       try {
         const res = shellExec(loadCmd);
-        if (res.ok && res.stdout && res.stdout.trim().startsWith('{')) {
+        if (res && res.ok && res.stdout && res.stdout.trim().startsWith('{')) {
           const loadedData = JSON.parse(res.stdout);
           if (loadedData && Array.isArray(loadedData.rules)) {
             configData = loadedData;
@@ -491,7 +514,6 @@ fi
     if (consoleRing) consoleRing.classList.add('live');
     log('Scanning Download directory...', 'info');
 
-    // Build list of valid extensions and destination folders from config rules
     const validExts = new Set();
     const destFolders = [];
     let hasOthers = false;
@@ -504,14 +526,14 @@ fi
 
     const folder = '/storage/emulated/0/Download';
     const pruneExpr = destFolders.map(df => `-name "${df}"`).join(' -o ');
-    const pruneCmd = pruneExpr ? `\( -name ".*" -o ${pruneExpr} \) -prune -o` : `\( -name ".*" \) -prune -o`;
+    const pruneCmd = pruneExpr ? `\\( -name ".*" -o ${pruneExpr} \\) -prune -o` : `\\( -name ".*" \\) -prune -o`;
     
     const findCmd = configData.include_subdirs 
       ? `find "${folder}" ${pruneCmd} -type f -print`
       : `find "${folder}" -maxdepth 1 -type f -print`;
 
     const res = shellExec(findCmd);
-    if (res.ok && res.stdout) {
+    if (res && res.ok && res.stdout) {
       const lines = res.stdout.split('\n').map(l => l.trim()).filter(Boolean);
       let count = 0;
 
@@ -523,7 +545,6 @@ fi
         const extMatch = filename.match(/\.([^.]+)$/);
         const ext = extMatch ? extMatch[1].toLowerCase() : '';
         
-        // If extension is .bak, check secondary extension
         let effectiveExt = ext;
         if (ext === 'bak') {
           const stemMatch = filename.replace(/\.bak$/i, '').match(/\.([^.]+)$/);
@@ -558,10 +579,33 @@ fi
       if (consoleRing) consoleRing.classList.add('live');
       log('Applying rules and moving files via action engine...', 'info');
 
-      const actionCmd = `sh /data/adb/modules/downloadout/action.sh 2>&1 || sh /sdcard/.down-loadout/action.sh 2>&1`;
+      const modulePath = getModulePath();
+      // Runs the action script with path fallbacks
+      const actionCmd = `sh "${modulePath}/action.sh" 2>&1 || sh /storage/emulated/0/.down-loadout/action.sh 2>&1 || sh /sdcard/.down-loadout/action.sh 2>&1`;
+      
+      log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
+      log(`[DEBUG] Executing command: ${actionCmd}`, 'info');
+
       const res = shellExec(actionCmd);
 
-      if (res.ok) {
+      // Detailed line-by-line formatted debugging logs
+      if (res) {
+        log(`[DEBUG] Shizuku Exit Code: ${res.exitCode}`, res.ok ? 'info' : 'err');
+        if (res.stdout) {
+          log('[DEBUG] --- stdout start ---', 'info');
+          log(res.stdout, 'info');
+          log('[DEBUG] --- stdout end ---', 'info');
+        }
+        if (res.stderr) {
+          log('[DEBUG] --- stderr start ---', 'err');
+          log(res.stderr, 'err');
+          log('[DEBUG] --- stderr end ---', 'err');
+        }
+      } else {
+        log('[DEBUG] Critical Error: Received null response from Shizuku Bridge.', 'err');
+      }
+
+      if (res && res.ok) {
         let count = 0;
         const match = (res.stdout || "").match(/SUCCESS_MOVED_COUNT:(\d+)/);
         if (match) count = parseInt(match[1], 10) || 0;
@@ -570,7 +614,8 @@ fi
         log(`[SUCCESS] Organized ${count} file(s) into category folders.`, 'ok');
         performScan();
       } else {
-        log('Organization error: ' + res.stderr, 'err');
+        const errMsg = res ? (res.stderr || 'Shell execution failed. See details in debug block above.') : 'Execution failed';
+        log('Organization error: ' + errMsg, 'err');
         if (consoleRing) consoleRing.classList.remove('live');
         setStatus('on', 'ready');
       }

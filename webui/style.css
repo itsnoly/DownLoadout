@@ -448,12 +448,27 @@ body {
 .console-body { max-height: 0; overflow: hidden; transition: max-height 0.25s var(--ease); }
 .console-body.open { max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .console-inner { padding: 0 14px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
-.log-line { display: flex; align-items: flex-start; gap: 7px; font-size: 0.68rem; line-height: 1.4; }
+
+/* ENFORCED WORD WRAPPING AND SCREEN FIT RULES FOR LOGS */
+.log-line { 
+  display: flex; 
+  align-items: flex-start; 
+  gap: 7px; 
+  font-size: 0.68rem; 
+  line-height: 1.4; 
+  word-break: break-word; 
+  overflow-wrap: break-word; 
+}
 .log-line .icon { width: 13px; height: 13px; margin-top: 1px; flex-shrink: 0; }
 .log-line.ok .icon { color: var(--ok); }
 .log-line.err .icon { color: var(--danger); }
 .log-line.info .icon { color: var(--teal); }
-.log-line .txt { color: var(--ink-dim); }
-.log-line .t { color: var(--ink-faint); }
-
-footer { text-align: center; font-size: 0.62rem; color: var(--ink-faint); padding: 2px 14px; }
+.log-line .txt { 
+  color: var(--ink-dim); 
+  white-space: pre-wrap; 
+  word-break: break-word; 
+  overflow-wrap: break-word; 
+  flex: 1; 
+  min-width: 0; 
+}
+.log-line .t { color: var(--ink-faint); flex-shrink: 0; }
