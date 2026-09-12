@@ -54,6 +54,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const scanBtn = el('scanBtn'), organizeBtn = el('organizeBtn');
   const lanesScroll = el('lanesScroll');
   const consoleHead = el('consoleHead'), consoleBody = el('consoleBody'), consoleChev = el('consoleChev'), consoleRing = el('consoleRing'), consoleInner = el('consoleInner'), consoleSection = el('consoleSection');
+  const consoleExpandBtn = el('consoleExpandBtn'), consoleExpandIcon = el('consoleExpandIcon');
   const dialProgress = el('dialProgress'), dialPct = el('dialPct');
   const sFiles = el('sFiles'), sCats = el('sCats'), sDone = el('sDone');
   const menuBtn = el('menuBtn'), menuDropdown = el('menuDropdown'), toggleSubdirsBtn = el('toggleSubdirsBtn'), subdirsSwitch = el('subdirsSwitch');
@@ -122,9 +123,36 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (consoleHead) {
     consoleHead.onclick = () => {
+      // While fullscreen, the header chevron is inert; only the expand/restore button exits.
+      if (consoleSection && consoleSection.classList.contains('expanded')) return;
       if (consoleBody) consoleBody.classList.toggle('open');
       if (consoleChev) consoleChev.classList.toggle('open');
     };
+  }
+
+  // Fullscreen log console (expand / restore with diagonal arrows icon)
+  if (consoleExpandBtn) {
+    let wasBodyOpen = true;
+    consoleExpandBtn.onclick = (e) => {
+      e.stopPropagation();
+      const expanded = consoleSection.classList.toggle('expanded');
+      if (expanded) {
+        wasBodyOpen = consoleBody ? consoleBody.classList.contains('open') : true;
+        if (consoleBody) {
+          consoleBody.classList.add('open');
+          requestAnimationFrame(() => { consoleBody.scrollTop = consoleBody.scrollHeight; });
+        }
+      } else if (!wasBodyOpen && consoleBody) {
+        consoleBody.classList.remove('open');
+      }
+      if (consoleExpandIcon) consoleExpandIcon.setAttribute('href', expanded ? '#ic-collapse' : '#ic-expand');
+      consoleExpandBtn.setAttribute('aria-expanded', String(expanded));
+      consoleExpandBtn.setAttribute('aria-label', expanded ? 'Exit full screen logs' : 'Expand logs full screen');
+      consoleExpandBtn.setAttribute('title', expanded ? 'Exit full screen logs' : 'Expand logs full screen');
+    };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && consoleSection.classList.contains('expanded')) consoleExpandBtn.click();
+    });
   }
 
   function shellExec(cmd) {
