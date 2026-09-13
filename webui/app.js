@@ -174,14 +174,37 @@ document.addEventListener("DOMContentLoaded", function () {
   // Stage a runnable copy of action.sh next to the settings so the
   // Organize flow never depends on the legacy hidden dot-folder.
   // Runs on WebUI load and before every Organize; idempotent.
-  function stageActionScript() {
+  async function stageActionScript() {
     const modulePath = getModulePath();
-    if (!modulePath) return;
-    const stageCmd = `mkdir -p ${SETTINGS_DIR} && if [ -f \"${modulePath}/action.sh\" ]; then cp -f \"${modulePath}/action.sh\" ${SETTINGS_DIR}/action.sh && echo STAGED; else echo NO_SOURCE; fi`;
-    const res = shellExec(stageCmd);
-    if (res && res.ok && (res.stdout || '').includes('STAGED')) {
-      log('Action script staged to ' + SETTINGS_DIR + '/action.sh', 'info');
+    const target = SETTINGS_DIR + '/action.sh';
+    // Preferred path: shell cp straight from the module dir. Works when the
+    // device is rooted (su shim) because shell can read app-private storage.
+    if (modulePath) {
+      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && if [ -f \"${modulePath}/action.sh\" ]; then cp -f \"${modulePath}/action.sh\" ${target} && echo STAGED; else echo NO_SOURCE; fi`);
+      if (res && res.ok && (res.stdout || '').includes('STAGED')) {
+        log('Action script staged to ' + target, 'info');
+        return true;
+      }
     }
+    // Fallback: on unrooted devices shell cannot read the app-private module
+    // dir, so cp above fails. Read the script here instead (the trusted
+    // WebView may fetch files from the module dir) and write it out through
+    // the shell bridge (writing to Download works for shell).
+    try {
+      const resp = await fetch('../action.sh');
+      if (!resp.ok) throw new Error('fetch failed: HTTP ' + resp.status);
+      const text = await resp.text();
+      const b64 = btoa(String.fromCharCode.apply(null, new TextEncoder().encode(text)));
+      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && echo '${b64}' | base64 -d > ${target} && echo STAGED`);
+      if (res && res.ok && (res.stdout || '').includes('STAGED')) {
+        log('Action script staged to ' + target + ' (app-side copy)', 'info');
+        return true;
+      }
+      log('Staging action.sh failed; place a copy manually at ' + target, 'err');
+    } catch (err) {
+      log('Could not stage action.sh: ' + err.message + '; place a copy manually at ' + target, 'err');
+    }
+    return false;
   }
 
   function parseCustomInterval(inputStr) {
@@ -668,7 +691,7 @@ fi
   if (scanBtn) scanBtn.onclick = performScan;
 
   if (organizeBtn) {
-    organizeBtn.onclick = () => {
+    organizeBtn.onclick = async () => {
       autoSaveConfig();
       log('=== Starting Organize Execution ===', 'info');
       
@@ -677,7 +700,7 @@ fi
       log('Applying rules and moving files via action engine...', 'info');
 
       const modulePath = getModulePath();
-      stageActionScript();
+      await stageActionScript();
       const actionCmd = `sh "${modulePath}/action.sh" 2>&1 || sh /storage/emulated/0/Download/DownLoadout/action.sh 2>&1`;
       
       log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
