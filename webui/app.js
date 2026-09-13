@@ -171,6 +171,22 @@ document.addEventListener("DOMContentLoaded", function () {
     return '/data/local/tmp/shevery/modules/downloadout';
   }
 
+  // XHR-based file read for file:// module resources. fetch() cannot load
+  // file:// URLs in Android WebView, XHR can (with allowFileAccessFromFileURLs
+  // + module trusted in Shevery).
+  function fetchModuleFile(relPath) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', relPath, true);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText);
+        else reject(new Error('XHR failed: HTTP ' + xhr.status + ' for ' + relPath));
+      };
+      xhr.onerror = () => reject(new Error('XHR error for ' + relPath + ' (trust the module in Shevery?)'));
+      xhr.send(null);
+    });
+  }
+
   // Stage a runnable copy of action.sh next to the settings so the
   // Organize flow never depends on the legacy hidden dot-folder.
   // Runs on WebUI load and before every Organize; idempotent.
@@ -190,10 +206,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // dir, so cp above fails. Read the script here instead (the trusted
     // WebView may fetch files from the module dir) and write it out through
     // the shell bridge (writing to Download works for shell).
+    // Note: Chromium WebView hard-rejects fetch() on file:// URLs, so use
+    // XHR (honours allowFileAccessFromFileURLs when the module is trusted).
     try {
-      const resp = await fetch('../action.sh');
-      if (!resp.ok) throw new Error('fetch failed: HTTP ' + resp.status);
-      const text = await resp.text();
+      const text = await fetchModuleFile('../action.sh');
       const b64 = btoa(String.fromCharCode.apply(null, new TextEncoder().encode(text)));
       const res = shellExec(`mkdir -p ${SETTINGS_DIR} && echo '${b64}' | base64 -d > ${target} && echo STAGED`);
       if (res && res.ok && (res.stdout || '').includes('STAGED')) {
