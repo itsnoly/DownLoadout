@@ -171,6 +171,19 @@ document.addEventListener("DOMContentLoaded", function () {
     return '/data/local/tmp/shevery/modules/downloadout';
   }
 
+  // Stage a runnable copy of action.sh next to the settings so the
+  // Organize flow never depends on the legacy hidden dot-folder.
+  // Runs on WebUI load and before every Organize; idempotent.
+  function stageActionScript() {
+    const modulePath = getModulePath();
+    if (!modulePath) return;
+    const stageCmd = `mkdir -p ${SETTINGS_DIR} && if [ -f \"${modulePath}/action.sh\" ]; then cp -f \"${modulePath}/action.sh\" ${SETTINGS_DIR}/action.sh && echo STAGED; else echo NO_SOURCE; fi`;
+    const res = shellExec(stageCmd);
+    if (res && res.ok && (res.stdout || '').includes('STAGED')) {
+      log('Action script staged to ' + SETTINGS_DIR + '/action.sh', 'info');
+    }
+  }
+
   function parseCustomInterval(inputStr) {
     if (!inputStr) return null;
     const trimmed = inputStr.trim().toLowerCase();
@@ -347,6 +360,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function loadModuleConfigAsync() {
     setTimeout(() => {
+      // Keep a runnable action.sh next to the settings on every load.
+      stageActionScript();
       // Settings live in their own directory under Download; migrate the
       // legacy hidden dot-folder location on first load (mirrors action.sh).
       const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
@@ -662,7 +677,8 @@ fi
       log('Applying rules and moving files via action engine...', 'info');
 
       const modulePath = getModulePath();
-      const actionCmd = `sh "${modulePath}/action.sh" 2>&1 || sh /storage/emulated/0/.down-loadout/action.sh 2>&1 || sh /sdcard/.down-loadout/action.sh 2>&1`;
+      stageActionScript();
+      const actionCmd = `sh "${modulePath}/action.sh" 2>&1 || sh /storage/emulated/0/Download/DownLoadout/action.sh 2>&1`;
       
       log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
       log(`[DEBUG] Executing command: ${actionCmd}`, 'info');
