@@ -24,8 +24,6 @@
   /* Category Specific SVG Colors */
   --cat-images: #ff8fc7;
   --cat-documents: #5eead4;
-  --cat-spreadsheets: #6ee7b7;
-  --cat-presentations: #38bdf8;
   --cat-videos: #a78bfa;
   --cat-audio: #f472b6;
   --cat-archives: #fbbf24;
@@ -104,8 +102,6 @@ body {
 /* SVG Category Icon Colors */
 .icon.cat-images { color: var(--cat-images); }
 .icon.cat-documents { color: var(--cat-documents); }
-.icon.cat-spreadsheets { color: var(--cat-spreadsheets); }
-.icon.cat-presentations { color: var(--cat-presentations); }
 .icon.cat-videos { color: var(--cat-videos); }
 .icon.cat-audio { color: var(--cat-audio); }
 .icon.cat-archives { color: var(--cat-archives); }

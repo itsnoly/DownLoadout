@@ -1,19 +1,17 @@
 document.addEventListener("DOMContentLoaded", function () {
   const DEFAULT_RULES = [
     { id:'images', name:'Images', folder:'! - Images', icon:'ic-image', exts:['jpg','jpeg','png','gif','webp','svg','heic','bmp'] },
-    { id:'documents', name:'Documents', folder:'! - Documents', icon:'ic-doc', exts:['pdf','doc','docx','txt','md','rtf'] },
-    { id:'spreadsheets', name:'Spreadsheets', folder:'! - Spreadsheets', icon:'ic-sheet', exts:['xls','xlsx','csv','numbers'] },
-    { id:'presentations', name:'Presentations', folder:'! - Presentations', icon:'ic-doc', exts:['ppt','pptx','key'] },
+    { id:'documents', name:'Documents', folder:'! - Documents', icon:'ic-doc', exts:['pdf','doc','docx','txt','md'] },
     { id:'videos', name:'Videos', folder:'! - Videos', icon:'ic-video', exts:['mp4','mov','avi','mkv','webm'] },
     { id:'audio', name:'Audio', folder:'! - Audio', icon:'ic-music', exts:['mp3','wav','flac','m4a','ogg'] },
     { id:'archives', name:'Archives', folder:'! - Archives', icon:'ic-archive', exts:['zip','rar','7z','tar','gz','bz2','xz','iso','tgz'] },
-    { id:'installers', name:'Installers', folder:'Installers', icon:'ic-box', exts:['exe','msi','dmg','pkg','deb','apk'] },
+    { id:'installers', name:'Installers', folder:'Installers', icon:'ic-box', exts:['exe','msi','dmg','pkg','deb','apk','apks'] },
     { id:'code', name:'Code & Scripts', folder:'! - Code', icon:'ic-code', exts:['js','html','css','py','json','ts','php','cpp'] },
-    { id:'design', name:'Design Files', folder:'! - Design', icon:'ic-image', exts:['psd','ai','fig','sketch','xd','blend'] },
-    { id:'ebooks', name:'eBooks', folder:'! - eBooks', icon:'ic-doc', exts:['epub','mobi','azw3','djvu'] }
+    { id:'design', name:'Design Files', folder:'! - Design', icon:'ic-image', exts:['psd','ai','fig','sketch','blend'] },
+    { id:'ebooks', name:'eBooks', folder:'! - eBooks', icon:'ic-doc', exts:['epub','azw3','djvu'] }
   ];
 
-  const DEFAULT_ACTIVE_IDS = ['images', 'documents', 'spreadsheets', 'videos', 'audio', 'archives'];
+  const DEFAULT_ACTIVE_IDS = ['images', 'documents', 'videos', 'audio', 'archives', 'installers'];
 
   let configData = {
     target_folder: '/storage/emulated/0/Download',
