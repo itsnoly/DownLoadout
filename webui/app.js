@@ -161,7 +161,9 @@ document.addEventListener("DOMContentLoaded", function () {
       const infoStr = window.Shizuku.getModuleInfo();
       if (infoStr) {
         const info = JSON.parse(infoStr);
-        if (info && info.path) return info.path;
+        // Shevery's bridge reports the install dir as `moduleDir`
+        // (older builds used `path`); accept either.
+        if (info && (info.path || info.moduleDir)) return info.path || info.moduleDir;
       }
     } catch (e) {
       // Fallback
@@ -350,8 +352,12 @@ document.addEventListener("DOMContentLoaded", function () {
       const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
       try {
         const res = shellExec(loadCmd);
-        if (res && res.ok && res.stdout && res.stdout.trim().startsWith('{')) {
-          const loadedData = JSON.parse(res.stdout);
+        // loadCmd prints a "CONF=<path>" header line before the JSON,
+        // so slice from the first '{' instead of requiring it at offset 0.
+        const raw = (res && res.stdout ? res.stdout : '').trim();
+        const jsonStart = raw.indexOf('{');
+        if (res && res.ok && jsonStart >= 0) {
+          const loadedData = JSON.parse(raw.slice(jsonStart));
           if (loadedData && Array.isArray(loadedData.rules)) {
             loadedData.rules = loadedData.rules.filter(r => r.id !== 'others');
             configData = loadedData;
