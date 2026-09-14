@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { id:'videos', name:'Videos', folder:'! - Videos', icon:'ic-video', exts:['mp4','mov','avi','mkv','webm'] },
     { id:'audio', name:'Audio', folder:'! - Audio', icon:'ic-music', exts:['mp3','wav','flac','m4a','ogg'] },
     { id:'archives', name:'Archives', folder:'! - Archives', icon:'ic-archive', exts:['zip','rar','7z','tar','gz','bz2','xz','iso','tgz'] },
-    { id:'installers', name:'! - Installers', folder:'Installers', icon:'ic-box', exts:['exe','msi','dmg','pkg','deb','apk','apks'] },
+    { id:'installers', name:'Installers', folder:'! - Installers', icon:'ic-box', exts:['exe','msi','dmg','pkg','deb','apk','apks'] },
     { id:'code', name:'Code & Scripts', folder:'! - Code', icon:'ic-code', exts:['js','html','css','py','json','ts','php','cpp'] },
     { id:'design', name:'Design Files', folder:'! - Design', icon:'ic-image', exts:['psd','ai','fig','sketch','blend'] },
     { id:'ebooks', name:'eBooks', folder:'! - eBooks', icon:'ic-doc', exts:['epub','azw3','djvu'] }
