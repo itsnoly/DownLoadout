@@ -668,10 +668,16 @@ fi
     };
   }
 
-  function performScan() {
+  async function performScan() {
     setStatus('busy', 'scanning…');
     if (consoleRing) consoleRing.classList.add('live');
     log('Scanning Download directory...', 'info');
+
+    // Yield one frame so the "Scanning…" status actually paints before the
+    // (synchronous) shell bridge call below runs — without this, the busy
+    // state and the "ready" state land in the same task and the browser
+    // never gets a chance to render the in-between state.
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
     const validExts = new Set();
     const destFolders = [];
@@ -727,53 +733,106 @@ fi
 
   if (scanBtn) scanBtn.onclick = performScan;
 
+  // shellExec() is a synchronous bridge call: the JS main thread is blocked
+  // for the entire time the shell command takes to return. action.sh moves
+  // real files and can run for several seconds, which is what froze the
+  // whole WebUI on "Organize Now". To keep the UI responsive we launch
+  // action.sh detached (returns almost immediately) and poll a log file
+  // with short, non-blocking shellExec() calls instead of one long one.
+  let organizeRunning = false;
+  const ORGANIZE_LOG_FILE = `${SETTINGS_DIR}/action_run.log`;
+  const ORGANIZE_DONE_MARKER = '___DONE_EXIT:';
+  const ORGANIZE_POLL_MS = 500;
+  const ORGANIZE_TIMEOUT_MS = 10 * 60 * 1000;
+
+  function pollOrganizeLog() {
+    return new Promise(resolve => {
+      let lastLen = 0;
+      let fullOutput = '';
+      const startedAt = Date.now();
+
+      const poll = () => {
+        const readRes = shellExec(`cat "${ORGANIZE_LOG_FILE}" 2>/dev/null`);
+        const content = (readRes && readRes.stdout) || '';
+
+        if (content.length > lastLen) {
+          const chunk = content.slice(lastLen);
+          lastLen = content.length;
+          fullOutput = content;
+          chunk.split('\n').forEach(line => {
+            if (line && !line.startsWith(ORGANIZE_DONE_MARKER)) log(line, 'info');
+          });
+        }
+
+        const doneIdx = content.indexOf(ORGANIZE_DONE_MARKER);
+        if (doneIdx !== -1) {
+          const exitCode = parseInt(content.slice(doneIdx + ORGANIZE_DONE_MARKER.length), 10);
+          resolve({ timedOut: false, exitCode: isNaN(exitCode) ? -1 : exitCode, fullOutput });
+          return;
+        }
+
+        if (Date.now() - startedAt > ORGANIZE_TIMEOUT_MS) {
+          resolve({ timedOut: true, exitCode: -1, fullOutput });
+          return;
+        }
+
+        setTimeout(poll, ORGANIZE_POLL_MS);
+      };
+      poll();
+    });
+  }
+
   if (organizeBtn) {
     organizeBtn.onclick = async () => {
+      if (organizeRunning) return;
+      organizeRunning = true;
+
       autoSaveConfig();
       log('=== Starting Organize Execution ===', 'info');
-      
+
       setStatus('busy', 'organizing…');
       if (consoleRing) consoleRing.classList.add('live');
       log('Applying rules and moving files via action engine...', 'info');
 
       const modulePath = getModulePath();
       await stageActionScript();
-      const actionCmd = `sh "${modulePath}/action.sh" 2>&1 || sh /storage/emulated/0/Download/DownLoadout/action.sh 2>&1`;
-      
+
+      const launchCmd = `rm -f "${ORGANIZE_LOG_FILE}"; nohup sh -c 'sh "${modulePath}/action.sh" 2>&1 || sh "/storage/emulated/0/Download/DownLoadout/action.sh" 2>&1; echo ${ORGANIZE_DONE_MARKER}$?' > "${ORGANIZE_LOG_FILE}" 2>&1 & echo BG_STARTED`;
+
       log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
-      log(`[DEBUG] Executing command: ${actionCmd}`, 'info');
+      log(`[DEBUG] Launching background action engine...`, 'info');
 
-      const res = shellExec(actionCmd);
+      const launchRes = shellExec(launchCmd);
 
-      if (res) {
-        log(`[DEBUG] Shizuku Exit Code: ${res.exitCode}`, res.ok ? 'info' : 'err');
-        if (res.stdout) {
-          log('[DEBUG] --- stdout start ---', 'info');
-          log(res.stdout, 'info');
-          log('[DEBUG] --- stdout end ---', 'info');
-        }
-        if (res.stderr) {
-          log('[DEBUG] --- stderr start ---', 'err');
-          log(res.stderr, 'err');
-          log('[DEBUG] --- stderr end ---', 'err');
-        }
-      } else {
-        log('[DEBUG] Critical Error: Received null response from Shizuku Bridge.', 'err');
+      if (!launchRes || !launchRes.ok) {
+        log('[DEBUG] Critical Error: Failed to launch background action engine.', 'err');
+        const errMsg = launchRes ? (launchRes.stderr || 'Shell execution failed.') : 'Execution failed';
+        log('Organization error: ' + errMsg, 'err');
+        if (consoleRing) consoleRing.classList.remove('live');
+        setStatus('on', 'ready');
+        organizeRunning = false;
+        return;
       }
 
-      if (res && res.ok) {
+      const { timedOut, exitCode, fullOutput } = await pollOrganizeLog();
+
+      log(`[DEBUG] Shizuku Exit Code: ${exitCode}`, exitCode === 0 ? 'info' : 'err');
+
+      if (!timedOut && exitCode === 0) {
         let count = 0;
-        const match = (res.stdout || "").match(/SUCCESS_MOVED_COUNT:(\d+)/);
+        const match = fullOutput.match(/SUCCESS_MOVED_COUNT:(\d+)/);
         if (match) count = parseInt(match[1], 10) || 0;
 
         organizedFilesCount = count;
         log(`[SUCCESS] Organized ${count} file(s) into category folders.`, 'ok');
-        performScan();
+        organizeRunning = false;
+        await performScan();
       } else {
-        const errMsg = res ? (res.stderr || 'Shell execution failed. See details in debug block above.') : 'Execution failed';
+        const errMsg = timedOut ? 'Timed out waiting for the action engine to finish.' : `action.sh exited with code ${exitCode}.`;
         log('Organization error: ' + errMsg, 'err');
         if (consoleRing) consoleRing.classList.remove('live');
         setStatus('on', 'ready');
+        organizeRunning = false;
       }
     };
   }
