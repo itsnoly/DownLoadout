@@ -85,6 +85,20 @@ document.addEventListener("DOMContentLoaded", function () {
     return String(v || '').trim().toLowerCase().replace(/^\./, '').replace(/[^a-z0-9_]/g, '');
   }
 
+  function assignExtensionToCategory(targetCatId, ext) {
+    const cleanExt = safeExt(ext);
+    if (!cleanExt) return;
+    configData.rules.forEach(rule => {
+      rule.exts = rule.exts.filter(e => e.toLowerCase() !== cleanExt);
+    });
+    const targetCat = configData.rules.find(c => c.id === targetCatId);
+    if (targetCat) {
+      if (!targetCat.exts.map(e => e.toLowerCase()).includes(cleanExt)) {
+        targetCat.exts.push(cleanExt);
+      }
+    }
+  }
+
   function iconSvg(name, catId) {
     const safeIcon = /^ic-[a-z0-9-]+$/.test(name || '') ? name : 'ic-file';
     let colorClass = safeIcon;
@@ -588,8 +602,7 @@ fi
       if (input) {
         const val = safeExt(input.value);
         if (val) {
-          const cat = configData.rules.find(c => c.id === id);
-          if (cat && !cat.exts.includes(val)) cat.exts.push(val);
+          assignExtensionToCategory(id, val);
           input.value = '';
           autoSaveConfig();
           renderLanes();
@@ -619,6 +632,12 @@ fi
         `;
         card.onclick = () => {
           const newCat = JSON.parse(JSON.stringify(preset));
+          newCat.exts.forEach(ext => {
+            const cleanExt = ext.toLowerCase();
+            configData.rules.forEach(rule => {
+              rule.exts = rule.exts.filter(e => e.toLowerCase() !== cleanExt);
+            });
+          });
           configData.rules.push(newCat);
 
           autoSaveConfig();
@@ -652,7 +671,13 @@ fi
       let folder = el('newCatFolder') ? el('newCatFolder').value.trim() || name : name;
       if (!folder.startsWith('! - ')) folder = '! - ' + folder;
       folder = safeFolderName(folder);
-      const exts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => safeExt(s)).filter(Boolean) : [];
+      const rawExts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => safeExt(s)).filter(Boolean) : [];
+      const exts = Array.from(new Set(rawExts));
+      exts.forEach(cleanExt => {
+        configData.rules.forEach(rule => {
+          rule.exts = rule.exts.filter(e => e.toLowerCase() !== cleanExt);
+        });
+      });
       if (!name) return;
       const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Math.random().toString(36).slice(2,6);
       configData.rules.push({ id, name, folder, exts, icon: 'ic-tag' });
