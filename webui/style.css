@@ -31,6 +31,7 @@
   --cat-code: #38bdf8;
   --cat-design: #e879f9;
   --cat-ebooks: #818cf8;
+  --cat-custom: #4ade80;
 
   --r-lg: 22px;
   --r-md: 14px;
@@ -109,6 +110,7 @@ body {
 .icon.cat-code { color: var(--cat-code); }
 .icon.cat-design { color: var(--cat-design); }
 .icon.cat-ebooks { color: var(--cat-ebooks); }
+.icon.cat-custom { color: var(--cat-custom); }
 
 /* ---------- Header & Menu ---------- */
 .hero { display: flex; align-items: center; gap: 12px; padding: 4px 2px; touch-action: pan-y; position: relative; }

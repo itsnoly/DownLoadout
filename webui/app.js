@@ -13,6 +13,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const DEFAULT_ACTIVE_IDS = ['images', 'documents', 'videos', 'audio', 'archives', 'installers'];
 
+  // Built-in category ids get their own branded SVG color (see style.css .icon.cat-*).
+  // Any other id (custom, user-created categories) falls back to the dedicated
+  // "cat-custom" color instead of an unmatched per-id class, which is what caused
+  // custom categories to render with no color (an ugly plain white icon).
+  const BUILTIN_CAT_IDS = new Set(DEFAULT_RULES.map(r => r.id));
+
+  // Maps a file extension to the icon (and color) of the built-in category it
+  // belongs to, so extension chips always show a file-type icon rather than
+  // whatever icon the category happens to have.
+  const EXT_ICON_MAP = {};
+  DEFAULT_RULES.forEach(r => {
+    r.exts.forEach(e => {
+      if (!(e in EXT_ICON_MAP)) EXT_ICON_MAP[e] = { icon: r.icon, typeId: r.id };
+    });
+  });
+  function iconForExt(ext) {
+    return EXT_ICON_MAP[String(ext || '').toLowerCase()] || { icon: 'ic-file', typeId: null };
+  }
+
   let configData = {
     target_folder: '/storage/emulated/0/Download',
     schedule_hours: 0,
@@ -68,8 +87,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function iconSvg(name, catId) {
     const safeIcon = /^ic-[a-z0-9-]+$/.test(name || '') ? name : 'ic-file';
-    const safeCat = String(catId || 'file').replace(/[^A-Za-z0-9_-]+/g, '');
-    const colorClass = catId ? `cat-${safeCat}` : safeIcon;
+    let colorClass = safeIcon;
+    if (catId) {
+      const safeCat = String(catId).replace(/[^A-Za-z0-9_-]+/g, '');
+      colorClass = BUILTIN_CAT_IDS.has(catId) ? `cat-${safeCat}` : 'cat-custom';
+    }
     return `<svg class="icon ${colorClass}"><use href="#${safeIcon}"/></svg>`;
   }
 
@@ -493,7 +515,8 @@ fi
         ? cat.exts.map(e => {
             const safeExt = esc(e);
             const safeCatId = esc(cat.id);
-            return `<div class="lane-chip">${iconSvg(cat.icon || 'ic-file', cat.id)}<span>.${safeExt}</span><span class="rm" role="button" aria-label="Remove extension ${safeExt}" data-del-ext="${safeCatId}:${safeExt}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`;
+            const typeInfo = iconForExt(e);
+            return `<div class="lane-chip">${iconSvg(typeInfo.icon, typeInfo.typeId)}<span>.${safeExt}</span><span class="rm" role="button" aria-label="Remove extension ${safeExt}" data-del-ext="${safeCatId}:${safeExt}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`;
           }).join('')
         : `<div class="lane-empty">no extensions configured</div>`;
       
@@ -632,7 +655,7 @@ fi
       const exts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => safeExt(s)).filter(Boolean) : [];
       if (!name) return;
       const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Math.random().toString(36).slice(2,6);
-      configData.rules.push({ id, name, folder, exts, icon: 'ic-file' });
+      configData.rules.push({ id, name, folder, exts, icon: 'ic-tag' });
       if (el('newCatName')) el('newCatName').value = ''; 
       if (el('newCatFolder')) el('newCatFolder').value = ''; 
       if (el('newCatExts')) el('newCatExts').value = '';
