@@ -1,5 +1,5 @@
 /**
- * DownLoadout - Vector Icon Sprite Registry
+ * DownTidy - Vector Icon Sprite Registry
  * Injected directly into DOM to eliminate file:// fetch CORS errors in WebViews.
  */
 (function () {

@@ -68,8 +68,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const CIRC = 264;
 
   // Settings live in their own dedicated directory (public, under Download),
-  // replacing the old hidden /sdcard/.down-loadout dot-folder.
-  const SETTINGS_DIR = '/storage/emulated/0/Download/DownLoadout';
+  // with seamless backward-compatible migration from DownLoadout or legacy dot-folders.
+  const SETTINGS_DIR = '/storage/emulated/0/Download/DownTidy';
+  const LEGACY_DOWNLOADOUT_DIR = '/storage/emulated/0/Download/DownLoadout';
   const LEGACY_SETTINGS_DIR = '/storage/emulated/0/.down-loadout';
   const FOLDER_SAFE_RE = /^[A-Za-z0-9 _,.!-]*$/;
 
@@ -208,7 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (e) {
       // Fallback
     }
-    return '/data/local/tmp/shevery/modules/downloadout';
+    return '/data/local/tmp/shevery/modules/downtidy';
   }
 
   // XHR-based file read for file:// module resources. fetch() cannot load
@@ -461,7 +462,7 @@ document.addEventListener("DOMContentLoaded", function () {
       stageActionScript();
       // Settings live in their own directory under Download; migrate the
       // legacy hidden dot-folder location on first load (mirrors action.sh).
-      const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
+      const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; O=${LEGACY_DOWNLOADOUT_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$O" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; cp "$O" "$M" 2>/dev/null; echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
       try {
         const res = shellExec(loadCmd);
         // loadCmd prints a "CONF=<path>" header line before the JSON,

@@ -1,23 +1,28 @@
 #!/system/bin/sh
-# DownLoadout - Background Interval Scheduler Service Daemon
+# DownTidy - Background Interval Scheduler Service Daemon
 
 export TMPDIR="${TMPDIR:-/data/local/tmp}"
 BASE_DIR="${DL_BASE:-/storage/emulated/0}"
 [ -d "$BASE_DIR" ] || BASE_DIR="/sdcard"
 
 # Module settings live in their own dedicated directory (public, under Download).
-SETTINGS_DIR="$BASE_DIR/Download/DownLoadout"
+SETTINGS_DIR="$BASE_DIR/Download/DownTidy"
 CONFIG_FILE="$SETTINGS_DIR/conveyor_config.json"
+LEGACY_DL_DIR="$BASE_DIR/Download/DownLoadout"
 LEGACY_DIR="$BASE_DIR/.down-loadout"
 
-# One-time migration from the legacy dot-folder location
-if [ ! -f "$CONFIG_FILE" ] && [ -f "$LEGACY_DIR/conveyor_config.json" ]; then
+# Backward-compatible migration from DownLoadout or legacy dot-folder locations
+if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$SETTINGS_DIR" 2>/dev/null
-    mv "$LEGACY_DIR/conveyor_config.json" "$CONFIG_FILE" 2>/dev/null
+    if [ -f "$LEGACY_DL_DIR/conveyor_config.json" ]; then
+        cp "$LEGACY_DL_DIR/conveyor_config.json" "$CONFIG_FILE" 2>/dev/null
+    elif [ -f "$LEGACY_DIR/conveyor_config.json" ]; then
+        mv "$LEGACY_DIR/conveyor_config.json" "$CONFIG_FILE" 2>/dev/null
+    fi
 fi
 
 # Ensure single background daemon instance via PID file
-SERVICE_PID_FILE="$TMPDIR/downloadout_service.pid"
+SERVICE_PID_FILE="$TMPDIR/downtidy_service.pid"
 if [ -f "$SERVICE_PID_FILE" ]; then
     OLD_PID=$(cat "$SERVICE_PID_FILE" 2>/dev/null)
     if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
@@ -80,7 +85,7 @@ while true; do
 
             if [ "$ELAPSED" -ge "$INTERVAL_SEC" ]; then
                 # Check lock to prevent overlapping runs or conflicts with manual executions
-                LOCK_DIR="$TMPDIR/downloadout.lock"
+                LOCK_DIR="$TMPDIR/downtidy.lock"
                 IS_LOCKED=0
                 if [ -d "$LOCK_DIR" ]; then
                     LOCK_AGE=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || echo 0)

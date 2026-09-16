@@ -1,20 +1,24 @@
 #!/system/bin/sh
-# DownLoadout - Core Organizer Engine for Shevery ADB
+# DownTidy - Core Organizer Engine for Shevery ADB
 
 export TMPDIR="${TMPDIR:-/data/local/tmp}"
 BASE_DIR="${DL_BASE:-/storage/emulated/0}"
 [ -d "$BASE_DIR" ] || BASE_DIR="/sdcard"
 
 # Module settings live in their own dedicated directory (public, under Download).
-# This replaces the old hidden /sdcard/.down-loadout dot-folder.
-SETTINGS_DIR="$BASE_DIR/Download/DownLoadout"
+SETTINGS_DIR="$BASE_DIR/Download/DownTidy"
 CONFIG_FILE="$SETTINGS_DIR/conveyor_config.json"
+LEGACY_DL_DIR="$BASE_DIR/Download/DownLoadout"
 LEGACY_DIR="$BASE_DIR/.down-loadout"
 
-# One-time migration from the legacy dot-folder location
-if [ ! -f "$CONFIG_FILE" ] && [ -f "$LEGACY_DIR/conveyor_config.json" ]; then
+# Backward-compatible migration from DownLoadout or legacy dot-folder locations
+if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$SETTINGS_DIR" 2>/dev/null
-    mv "$LEGACY_DIR/conveyor_config.json" "$CONFIG_FILE" 2>/dev/null
+    if [ -f "$LEGACY_DL_DIR/conveyor_config.json" ]; then
+        cp "$LEGACY_DL_DIR/conveyor_config.json" "$CONFIG_FILE" 2>/dev/null
+    elif [ -f "$LEGACY_DIR/conveyor_config.json" ]; then
+        mv "$LEGACY_DIR/conveyor_config.json" "$CONFIG_FILE" 2>/dev/null
+    fi
 fi
 
 # Initialize default configuration if missing
@@ -50,9 +54,9 @@ TARGET_DIR="$BASE_DIR/Download"
 ACTION="${1:-organize}"
 
 if [ "$ACTION" = "move_to_download" ]; then
-    echo "[INFO] Starting DownLoadout Move to Download engine..."
+    echo "[INFO] Starting DownTidy Move to Download engine..."
 else
-    echo "[INFO] Starting DownLoadout organization engine..."
+    echo "[INFO] Starting DownTidy organization engine..."
 fi
 echo "[INFO] Monitored target directory: $TARGET_DIR"
 echo "[INFO] Settings file: $CONFIG_FILE"
@@ -61,20 +65,12 @@ cd "$TARGET_DIR" || exit 1
 
 # --- Run lock: prevent overlapping service + manual runs ---
 # Stale-lock recovery: a lock older than 10 minutes is considered abandoned.
-LOCK_DIR="$TMPDIR/downloadout.lock"
+LOCK_DIR="$TMPDIR/downtidy.lock"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     LOCK_AGE=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || echo 0)
     if [ $(( $(date +%s) - LOCK_AGE )) -gt 600 ]; then
         rm -rf "$LOCK_DIR" 2>/dev/null
-        mkdir "$LOCK_DIR" 2>/dev/null || { echo "[INFO] Another organization run is already in progress. Skipping."; exit 0; }
-    else
-        echo "[INFO] Another organization run is already in progress. Skipping."
-        exit 0
-    fi
-fi
-
-PAIRS_FILE="$TMPDIR/downloadout_pairs.$$"
-COUNT_FILE="$TMPDIR/downloadout_count.$$"
+        mkdir "$LOCK_DIR" 2>/dev/null || { echo "[INFO] Another organization run is already in progress. Skipping."; exit 0; }\n    else\n        echo \"[INFO] Another organization run is already in progress. Skipping.\"\n        exit 0\n    fi\nfi\n\nPAIRS_FILE=\"$TMPDIR/downtidy_pairs.$$\"\nCOUNT_FILE=\"$TMPDIR/downtidy_count.$$\"
 echo 0 > "$COUNT_FILE"
 
 cleanup() {
