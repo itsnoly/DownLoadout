@@ -700,7 +700,7 @@ fi
       });
       if (!name) return;
       const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Math.random().toString(36).slice(2,6);
-      configData.rules.push({ id, name, folder, exts, icon: 'ic-tag' });
+      configData.rules.push({ id, name, folder, exts, icon: 'ic-sparkles' });
       if (el('newCatName')) el('newCatName').value = ''; 
       if (el('newCatFolder')) el('newCatFolder').value = ''; 
       if (el('newCatExts')) el('newCatExts').value = '';

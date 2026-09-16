@@ -35,7 +35,8 @@
     <symbol id="ic-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
     <symbol id="ic-expand" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></symbol>
     <symbol id="ic-collapse" viewBox="0 0 24 24"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 14l7-7"/><path d="M10 10L3 17"/></symbol>
-    <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M11.4 3H19a2 2 0 0 1 2 2v7.6a2 2 0 0 1-.59 1.41l-7.4 7.4a2 2 0 0 1-2.82 0l-7.6-7.6a2 2 0 0 1 0-2.82l7.4-7.4A2 2 0 0 1 11.4 3z"/><circle cx="16.5" cy="7.5" r="1.3" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M12 3l1.8 4.2L16.5 9l-4.2 1.8L10.5 15l-1.8-4.2L4.5 9l4.2-1.8zM19 14l1 2.2 2.2 1-2.2 1-1 2.2-1-2.2-2.2-1 2.2-1zM5 17l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z"/></symbol>
+    <symbol id="ic-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.8 4.2L16.5 9l-4.2 1.8L10.5 15l-1.8-4.2L4.5 9l4.2-1.8zM19 14l1 2.2 2.2 1-2.2 1-1 2.2-1-2.2-2.2-1 2.2-1zM5 17l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z"/></symbol>
   </defs>
 </svg>
 `;
