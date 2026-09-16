@@ -566,7 +566,7 @@ fi
             const safeExt = esc(e);
             const safeCatId = esc(cat.id);
             const typeInfo = iconForExt(e);
-            return `<div class="lane-chip">${iconSvg(typeInfo.icon, typeInfo.typeId)}<span>.${safeExt}</span><span class="rm" role="button" aria-label="Remove extension ${safeExt}" data-del-ext="${safeCatId}:${safeExt}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`;
+            return `<div class="lane-chip">${iconSvg(typeInfo.icon, typeInfo.typeId || cat.id)}<span>.${safeExt}</span><span class="rm" role="button" aria-label="Remove extension ${safeExt}" data-del-ext="${safeCatId}:${safeExt}"><svg class="icon sm"><use href="#ic-x"/></svg></span></div>`;
           }).join('')
         : `<div class="lane-empty">no extensions configured</div>`;
       
