@@ -195,6 +195,77 @@ body {
   box-shadow: 0 0 8px var(--teal-glow);
 }
 
+/* ---------- Shevery Full Trust Security Card (Replaces Dial Card) ---------- */
+.trust-card {
+  background: linear-gradient(135deg, rgba(32, 22, 8, 0.96), rgba(16, 11, 4, 0.98));
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: var(--r-lg);
+  padding: 22px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(245, 158, 11, 0.12);
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.trust-card-icon-wrap {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--r-md);
+  background: rgba(251, 191, 36, 0.14);
+  border: 1.5px solid rgba(251, 191, 36, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fbbf24;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.15);
+}
+
+.trust-card-icon-wrap .icon {
+  width: 34px;
+  height: 34px;
+}
+
+.trust-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trust-card-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #fbbf24;
+  text-transform: uppercase;
+}
+
+.trust-card-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fffbeb;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.trust-card-desc {
+  font-size: 0.78rem;
+  color: #d6cfb8;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.trust-card-desc strong {
+  color: #fffbeb;
+}
+
 /* ---------- Dial Card ---------- */
 .dial-card {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);

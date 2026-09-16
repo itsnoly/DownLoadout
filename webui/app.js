@@ -178,9 +178,49 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function showTrustBanner() {
+    const banner = el('trustBanner');
+    const dialCard = el('dialCard');
+    if (dialCard) dialCard.style.display = 'none';
+    if (banner) banner.style.display = 'flex';
+  }
+
+  function checkTrustStatus(silent = false) {
+    const banner = el('trustBanner');
+    const dialCard = el('dialCard');
+    let isTrusted = false;
+
+    if (window.Shizuku && typeof window.Shizuku.exec === 'function') {
+      try {
+        const testRes = JSON.parse(window.Shizuku.exec('echo ok'));
+        if (testRes && (testRes.exitCode === 0 || (testRes.stdout && testRes.stdout.trim() === 'ok'))) {
+          isTrusted = true;
+        }
+      } catch (e) {
+        isTrusted = false;
+      }
+    }
+
+    if (isTrusted) {
+      if (banner) banner.style.display = 'none';
+      if (dialCard) dialCard.style.display = 'flex';
+      if (!silent) {
+        log('Shevery Shell Bridge verified! Full Trust Mode is active.', 'ok');
+      }
+    } else {
+      if (dialCard) dialCard.style.display = 'none';
+      if (banner) banner.style.display = 'flex';
+      if (!silent) {
+        log('Shell Bridge unavailable. Please enable "Trust Module" in Shevery.', 'err');
+      }
+    }
+    return isTrusted;
+  }
+
   function shellExec(cmd) {
     if (!window.Shizuku) {
       log('Shizuku Shell bridge is unavailable.', 'err');
+      showTrustBanner();
       return { ok: false, stdout: '', stderr: 'No Shizuku bridge' };
     }
     try {
@@ -192,6 +232,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return res;
     } catch(err) {
       log('Shell execution error: ' + err.message, 'err');
+      showTrustBanner();
       return { ok: false, stdout: '', stderr: err.message };
     }
   }
@@ -233,35 +274,37 @@ document.addEventListener("DOMContentLoaded", function () {
   // Runs on WebUI load and before every Organize; idempotent.
   async function stageActionScript() {
     const modulePath = getModulePath();
-    const target = SETTINGS_DIR + '/action.sh';
-    // Preferred path: shell cp straight from the module dir. Works when the
-    // device is rooted (su shim) because shell can read app-private storage.
+    const targetAction = SETTINGS_DIR + '/action.sh';
+    const targetService = SETTINGS_DIR + '/service.sh';
     if (modulePath) {
-      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && if [ -f \"${modulePath}/action.sh\" ]; then cp -f \"${modulePath}/action.sh\" ${target} && echo STAGED; else echo NO_SOURCE; fi`);
+      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && if [ -f "${modulePath}/action.sh" ]; then cp -f "${modulePath}/action.sh" ${targetAction}; fi && if [ -f "${modulePath}/service.sh" ]; then cp -f "${modulePath}/service.sh" ${targetService}; fi && echo STAGED`);
       if (res && res.ok && (res.stdout || '').includes('STAGED')) {
-        log('Action script staged to ' + target, 'info');
+        log('Scripts staged to ' + SETTINGS_DIR, 'info');
+        ensureBackgroundService();
         return true;
       }
     }
-    // Fallback: on unrooted devices shell cannot read the app-private module
-    // dir, so cp above fails. Read the script here instead (the trusted
-    // WebView may fetch files from the module dir) and write it out through
-    // the shell bridge (writing to Download works for shell).
-    // Note: Chromium WebView hard-rejects fetch() on file:// URLs, so use
-    // XHR (honours allowFileAccessFromFileURLs when the module is trusted).
     try {
       const text = await fetchModuleFile('../action.sh');
       const b64 = btoa(String.fromCharCode.apply(null, new TextEncoder().encode(text)));
-      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && echo '${b64}' | base64 -d > ${target} && echo STAGED`);
+      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && echo '${b64}' | base64 -d > ${targetAction} && echo STAGED`);
       if (res && res.ok && (res.stdout || '').includes('STAGED')) {
-        log('Action script staged to ' + target + ' (app-side copy)', 'info');
+        log('Action script staged to ' + targetAction + ' (app-side copy)', 'info');
+        ensureBackgroundService();
         return true;
       }
-      log('Staging action.sh failed; place a copy manually at ' + target, 'err');
     } catch (err) {
-      log('Could not stage action.sh: ' + err.message + '; place a copy manually at ' + target, 'err');
+      log('Could not stage action.sh: ' + err.message, 'err');
     }
+    ensureBackgroundService();
     return false;
+  }
+
+  function ensureBackgroundService(forceRestart = false) {
+    const modulePath = getModulePath();
+    const targetService = SETTINGS_DIR + '/service.sh';
+    const cmd = `PID_FILE=/data/local/tmp/downtidy_service.pid; LEGACY_PID_FILE=/data/local/tmp/downloadout_service.pid; rm -f "$LEGACY_PID_FILE" 2>/dev/null; if [ "${forceRestart ? '1' : '0'}" = "1" ]; then OLD_PID=$(cat "$PID_FILE" 2>/dev/null); [ -n "$OLD_PID" ] && kill -9 "$OLD_PID" 2>/dev/null; rm -f "$PID_FILE" 2>/dev/null; fi; if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE" 2>/dev/null) 2>/dev/null; then echo "SERVICE_ALREADY_RUNNING"; else nohup sh -c 'if [ -f "${targetService}" ]; then sh "${targetService}"; elif [ -f "${modulePath}/service.sh" ]; then sh "${modulePath}/service.sh"; fi' >/dev/null 2>&1 & echo "SERVICE_STARTED"; fi`;
+    shellExec(cmd);
   }
 
   function parseCustomInterval(inputStr) {
@@ -450,6 +493,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const res = shellExec(saveCmd);
       if (res && res.ok) {
         log('Configuration saved to ' + SETTINGS_DIR + '/conveyor_config.json', 'info');
+        ensureBackgroundService(true);
       } else {
         log('Auto-save warning: ' + (res ? res.stderr : 'Execution failed'), 'err');
       }
@@ -943,10 +987,17 @@ fi
     organizeBtn.onclick = () => runActionEngine('organize');
   }
 
+  // Automatically re-verify trust status whenever the user switches back from Shevery
+  window.addEventListener('focus', () => checkTrustStatus(true));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkTrustStatus(true);
+  });
+
   updateTogglesUI();
   renderHoursTabs();
   renderDaysTabs();
   renderLanes();
   updateStats();
+  checkTrustStatus(true);
   loadModuleConfigAsync();
 });

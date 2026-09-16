@@ -70,7 +70,15 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     LOCK_AGE=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || echo 0)
     if [ $(( $(date +%s) - LOCK_AGE )) -gt 600 ]; then
         rm -rf "$LOCK_DIR" 2>/dev/null
-        mkdir "$LOCK_DIR" 2>/dev/null || { echo "[INFO] Another organization run is already in progress. Skipping."; exit 0; }\n    else\n        echo \"[INFO] Another organization run is already in progress. Skipping.\"\n        exit 0\n    fi\nfi\n\nPAIRS_FILE=\"$TMPDIR/downtidy_pairs.$$\"\nCOUNT_FILE=\"$TMPDIR/downtidy_count.$$\"
+        mkdir "$LOCK_DIR" 2>/dev/null || { echo "[INFO] Another organization run is already in progress. Skipping."; exit 0; }
+    else
+        echo "[INFO] Another organization run is already in progress. Skipping."
+        exit 0
+    fi
+fi
+
+PAIRS_FILE="$TMPDIR/downtidy_pairs.$$"
+COUNT_FILE="$TMPDIR/downtidy_count.$$"
 echo 0 > "$COUNT_FILE"
 
 cleanup() {

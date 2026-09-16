@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>DownTidy — Downloads Organizer</title>
-<link rel="stylesheet" href="style.css?v=1.1.0">
+<link rel="stylesheet" href="style.css?v=1.1.3">
 </head>
 <body>
 <div class="bg-wash"></div>
@@ -108,7 +108,7 @@
   </div>
 
   <!-- Dial Stats Card -->
-  <div class="dial-card">
+  <div class="dial-card" id="dialCard">
     <div class="dial-wrap">
       <svg viewBox="0 0 100 100">
         <circle class="dial-track" cx="50" cy="50" r="42"/>
@@ -131,6 +131,20 @@
           <span>Organize Now</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Shevery Full Trust Security Card (Replaces Dial Card when unverified) -->
+  <div class="trust-card" id="trustBanner" style="display: none;">
+    <div class="trust-card-icon-wrap">
+      <svg class="icon"><use href="#ic-shield"/></svg>
+    </div>
+    <div class="trust-card-body">
+      <div class="trust-card-badge">SHEVERY SECURITY BRIDGE</div>
+      <h2 class="trust-card-title">Full Trust Mode Required</h2>
+      <p class="trust-card-desc">
+        DownTidy requires <strong>Trusted Mode</strong> to execute shell actions, categorize files, and run background scheduling. Open this module in <strong>Shevery ADB</strong> and enable <strong>Trust Module</strong>.
+      </p>
     </div>
   </div>
 
@@ -257,7 +271,7 @@
 
 </div>
 
-<script src="icons.js?v=1.1.0"></script>
-<script src="app.js?v=1.1.0"></script>
+<script src="icons.js?v=1.1.3"></script>
+<script src="app.js?v=1.1.3"></script>
 </body>
 </html>
