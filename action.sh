@@ -269,14 +269,14 @@ EOF
         else
             FIND_EXPR="\\( -name \".?*\" \\) -prune -o -type f"
         fi
-        run_find() { eval "find . $FIND_EXPR -print0"; }
+        run_find() { eval "find . $FIND_EXPR -print"; }
         ;;
     *)
-        run_find() { find . -maxdepth 1 -type f -print0; }
+        run_find() { find . -maxdepth 1 -type f -print; }
         ;;
 esac
 
-run_find 2>/dev/null | while IFS= read -r -d '' filepath; do
+run_find 2>/dev/null | while IFS= read -r filepath; do
     [ -z "$filepath" ] && continue
     filename=$(basename "$filepath")
 
