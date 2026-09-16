@@ -88,19 +88,17 @@
 
   <!-- BRAND ICON -->
   <g filter="url(#shadow)" transform="translate(-12, 0) scale(3)">
-    <circle cx="85" cy="90" r="42" fill="#0d9488" opacity="0.14" filter="url(#softGlow)"/>
-    <circle cx="85" cy="90" r="35" fill="none" stroke="#2dd4bf" stroke-width="1" stroke-dasharray="4 3" opacity="0.3"/>
+    <!-- Soft diffuse aura matching the icon contours -->
+    <path d="M69 90 L85 98 L101 90 L85 82 Z" fill="#2dd4bf" opacity="0.2" filter="url(#softGlow)"/>
 
     <svg x="45" y="50" width="80" height="80" viewBox="0 0 48 48" fill="none">
-      <path d="M24 6 C18 10 16 16 18 22 C12 23 9 27 8 33 C14 35 20 33 24 29 C28 33 34 35 40 33 C39 27 36 23 30 22 C32 16 30 10 24 6Z"
-            fill="url(#markGrad)"
-            stroke="#99f6e4"
-            stroke-width="0.75"
-            filter="url(#glow)"/>
-      <circle cx="24" cy="24" r="5.5" fill="#030507"/>
-      <circle cx="24" cy="24" r="2.4" fill="#2dd4bf"/>
-      <circle cx="24" cy="24" r="12" fill="none" stroke="#2dd4bf" stroke-width="0.6" opacity="0.4"/>
-      <circle cx="24" cy="24" r="18" fill="none" stroke="#2dd4bf" stroke-width="0.7" opacity="0.2"/>
+      <!-- Base de arquivos organizados -->
+      <path d="M6 32l18 9 18-9-18-9-18 9z" fill="url(#markGrad)" opacity="0.3"/>
+      <path d="M6 24l18 9 18-9-18-9-18 9z" fill="url(#markGrad)" opacity="0.6"/>
+      <path d="M6 16l18 9 18-9-18-9-18 9z" fill="url(#markGrad)" stroke="#99f6e4" stroke-width="0.75" filter="url(#glow)"/>
+      <!-- Ponto central de sincronização -->
+      <circle cx="24" cy="25" r="3" fill="#030507"/>
+      <circle cx="24" cy="25" r="1.5" fill="#2dd4bf"/>
     </svg>
   </g>
 
