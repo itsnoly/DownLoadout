@@ -47,7 +47,13 @@ TARGET_DIR="$BASE_DIR/Download"
 [ ! -d "$TARGET_DIR" ] && TARGET_DIR="$BASE_DIR/Download"
 [ ! -d "$TARGET_DIR" ] && { echo "[ERROR] Target directory '$TARGET_DIR' does not exist."; exit 1; }
 
-echo "[INFO] Starting DownLoadout organization engine..."
+ACTION="${1:-organize}"
+
+if [ "$ACTION" = "move_to_download" ]; then
+    echo "[INFO] Starting DownLoadout Move to Download engine..."
+else
+    echo "[INFO] Starting DownLoadout organization engine..."
+fi
 echo "[INFO] Monitored target directory: $TARGET_DIR"
 echo "[INFO] Settings file: $CONFIG_FILE"
 
@@ -95,7 +101,7 @@ valid_folder() {
 TAB=$(printf '\t')
 generate_pairs() {
     > "$PAIRS_FILE"
-    awk -v RS='}' -v OFS="$TAB" '
+    tr -d '\r\n' < "$CONFIG_FILE" | awk -v RS='}' -v OFS="$TAB" '
       /"id"[[:space:]]*:[[:space:]]*"[^"]*"/ {
         r_folder = "";
         if (match($0, /"folder"[[:space:]]*:[[:space:]]*"[^"]*"/)) {
@@ -117,7 +123,7 @@ generate_pairs() {
             if (ext != "" && r_folder != "") print ext OFS r_folder;
           }
         }
-      }' "$CONFIG_FILE" 2>/dev/null | while IFS="$TAB" read -r e f; do
+      }' 2>/dev/null | while IFS="$TAB" read -r e f; do
         [ -z "$e" ] && continue
         if valid_folder "$f"; then
             printf '%s\t%s\n' "$e" "$f" >> "$PAIRS_FILE"
@@ -134,7 +140,7 @@ ext_folder() {
 }
 
 # Unique dest folder names, newline-separated (space-safe: exact-name matching).
-DEST_FOLDERS=$(awk -F"$TAB" 'NF == 2 { print $2 }' "$PAIRS_FILE" | sort -u)
+DEST_FOLDERS=$( (grep -o '"folder"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | sed -E 's/.*"folder"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/'; awk -F"$TAB" 'NF == 2 { print $2 }' "$PAIRS_FILE" 2>/dev/null) | sort -u )
 
 is_incomplete_file() {
     case "$1" in
@@ -154,6 +160,93 @@ EOF
     return 1
 }
 
+move_with_conflict_handling() {
+    src_file="$1"
+    dest_dir="$2"
+    filename=$(basename "$src_file")
+
+    target_path="$dest_dir/$filename"
+
+    if [ -e "$target_path" ]; then
+        ext="${filename##*.}"
+        [ "$ext" = "$filename" ] && ext=""
+        ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_')
+        base="${filename%.*}"
+        count=1
+        if [ -n "$ext_lower" ]; then
+            target_path="$dest_dir/${base}_${count}.${ext_lower}"
+            while [ -e "$target_path" ]; do
+                count=$((count + 1))
+                target_path="$dest_dir/${base}_${count}.${ext_lower}"
+            done
+        else
+            target_path="$dest_dir/${base}_${count}"
+            while [ -e "$target_path" ]; do
+                count=$((count + 1))
+                target_path="$dest_dir/${base}_${count}"
+            done
+        fi
+    fi
+
+    if mv "$src_file" "$target_path" 2>/dev/null; then
+        moved=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
+        moved=$((moved + 1))
+        echo "$moved" > "$COUNT_FILE"
+        return 0
+    fi
+    return 1
+}
+
+# Execute dedicated action: move_to_download
+if [ "$ACTION" = "move_to_download" ]; then
+    echo "[INFO] Moving category files back to Download folder..."
+
+    CONFIG_FOLDERS=$(grep -o '"folder"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | sed -E 's/.*"folder"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
+    PAIR_FOLDERS=""
+    [ -f "$PAIRS_FILE" ] && PAIR_FOLDERS=$(awk -F"$TAB" 'NF == 2 { print $2 }' "$PAIRS_FILE" 2>/dev/null)
+
+    DIR_FOLDERS=""
+    for d in !* Installers Documents Images Videos Audio Archives Code Design eBooks; do
+        [ -d "$d" ] && DIR_FOLDERS="$DIR_FOLDERS
+$d"
+    done
+
+    ALL_FOLDERS=$( (echo "$CONFIG_FOLDERS"; echo "$PAIR_FOLDERS"; echo "$DIR_FOLDERS") | sort -u )
+
+    OLD_IFS="$IFS"
+    IFS='
+'
+    for df in $ALL_FOLDERS; do
+        IFS="$OLD_IFS"
+        [ -z "$df" ] && continue
+        if ! valid_folder "$df"; then
+            continue
+        fi
+        [ ! -d "$df" ] && continue
+
+        for filepath in "$df"/*; do
+            [ -e "$filepath" ] || continue
+            [ -f "$filepath" ] || continue
+            filename=$(basename "$filepath")
+
+            if is_incomplete_file "$filename"; then
+                continue
+            fi
+
+            if move_with_conflict_handling "$filepath" "$TARGET_DIR"; then
+                echo "[OK] Moved: $df/$filename -> Download/"
+            fi
+        done
+    done
+    IFS="$OLD_IFS"
+
+    MOVED_COUNT=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
+    echo "[SUCCESS] Execution completed. $MOVED_COUNT file(s) moved to Download."
+    echo "SUCCESS_MOVED_COUNT:$MOVED_COUNT"
+    exit 0
+fi
+
+# Execute default action: organize
 echo "[INFO] Scanning for organizeable files..."
 
 case "$INCLUDE_SUBDIRS" in
@@ -176,8 +269,6 @@ EOF
         else
             FIND_EXPR="\\( -name \".?*\" \\) -prune -o -type f"
         fi
-        # PRUNE_EXPR only ever contains charset-validated names (no quotes,
-        # backslashes or metacharacters), so eval cannot inject anything.
         run_find() { eval "find . $FIND_EXPR -print0"; }
         ;;
     *)
@@ -228,30 +319,8 @@ run_find 2>/dev/null | while IFS= read -r -d '' filepath; do
     fi
 
     mkdir -p "$dest" || continue
-    target_path="$dest/$filename"
 
-    if [ -f "$target_path" ]; then
-        base="${filename%.*}"
-        count=1
-        if [ -n "$ext_lower" ]; then
-            target_path="$dest/${base}_${count}.${ext_lower}"
-            while [ -f "$target_path" ]; do
-                count=$((count + 1))
-                target_path="$dest/${base}_${count}.${ext_lower}"
-            done
-        else
-            target_path="$dest/${base}_${count}"
-            while [ -f "$target_path" ]; do
-                count=$((count + 1))
-                target_path="$dest/${base}_${count}"
-            done
-        fi
-    fi
-
-    if mv "$filepath" "$target_path" 2>/dev/null; then
-        moved=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
-        moved=$((moved + 1))
-        echo "$moved" > "$COUNT_FILE"
+    if move_with_conflict_handling "$filepath" "$dest"; then
         echo "[OK] Moved: $filename -> $dest/"
     fi
 done

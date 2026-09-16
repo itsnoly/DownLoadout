@@ -58,10 +58,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const sFiles = el('sFiles'), sCats = el('sCats'), sDone = el('sDone');
   const menuBtn = el('menuBtn'), menuDropdown = el('menuDropdown'), toggleSubdirsBtn = el('toggleSubdirsBtn'), subdirsSwitch = el('subdirsSwitch');
   const toggleLogsBtn = el('toggleLogsBtn'), logsSwitch = el('logsSwitch'), resetDefaultsBtn = el('resetDefaultsBtn');
+  const moveToDownloadBtn = el('moveToDownloadBtn');
   const hoursTabs = el('hoursTabs'), daysTabs = el('daysTabs');
   const customIntervalInput = el('customIntervalInput'), applyCustomIntervalBtn = el('applyCustomIntervalBtn');
   
   const resetConfirmCard = el('resetConfirmCard'), closeResetCardBtn = el('closeResetCardBtn'), cancelResetBtn = el('cancelResetBtn'), confirmResetBtn = el('confirmResetBtn');
+  const moveDownloadConfirmCard = el('moveDownloadConfirmCard'), closeMoveDownloadCardBtn = el('closeMoveDownloadCardBtn'), cancelMoveDownloadBtn = el('cancelMoveDownloadBtn'), confirmMoveDownloadBtn = el('confirmMoveDownloadBtn');
   const addCategoryCard = el('addCategoryCard'), closeAddCatCardBtn = el('closeAddCatCardBtn'), presetGrid = el('presetGrid'), predefinedSection = el('predefinedSection');
   const CIRC = 264;
 
@@ -335,6 +337,24 @@ document.addEventListener("DOMContentLoaded", function () {
       updateStats();
       resetConfirmCard.style.display = 'none';
       log('Reset settings to default values.', 'ok');
+    };
+  }
+
+  if (moveToDownloadBtn && moveDownloadConfirmCard) {
+    moveToDownloadBtn.onclick = () => {
+      if (menuDropdown) menuDropdown.classList.remove('open');
+      moveDownloadConfirmCard.style.display = 'flex';
+      moveDownloadConfirmCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+  }
+
+  if (closeMoveDownloadCardBtn) closeMoveDownloadCardBtn.onclick = () => moveDownloadConfirmCard.style.display = 'none';
+  if (cancelMoveDownloadBtn) cancelMoveDownloadBtn.onclick = () => moveDownloadConfirmCard.style.display = 'none';
+
+  if (confirmMoveDownloadBtn) {
+    confirmMoveDownloadBtn.onclick = () => {
+      moveDownloadConfirmCard.style.display = 'none';
+      runActionEngine('move_to_download');
     };
   }
 
@@ -807,59 +827,74 @@ fi
     });
   }
 
-  if (organizeBtn) {
-    organizeBtn.onclick = async () => {
-      if (organizeRunning) return;
-      organizeRunning = true;
+  async function runActionEngine(mode = 'organize') {
+    if (organizeRunning) return;
+    organizeRunning = true;
 
-      autoSaveConfig();
+    autoSaveConfig();
+
+    const isMoveToDownload = mode === 'move_to_download';
+    if (isMoveToDownload) {
+      log('=== Starting Move to Download Execution ===', 'info');
+      setStatus('busy', 'moving…');
+      if (consoleRing) consoleRing.classList.add('live');
+      log('Moving category files back to Download folder...', 'info');
+    } else {
       log('=== Starting Organize Execution ===', 'info');
-
       setStatus('busy', 'organizing…');
       if (consoleRing) consoleRing.classList.add('live');
       log('Applying rules and moving files via action engine...', 'info');
+    }
 
-      const modulePath = getModulePath();
-      await stageActionScript();
+    const modulePath = getModulePath();
+    await stageActionScript();
 
-      const launchCmd = `rm -f "${ORGANIZE_LOG_FILE}"; nohup sh -c 'sh "${modulePath}/action.sh" 2>&1 || sh "/storage/emulated/0/Download/DownLoadout/action.sh" 2>&1; echo ${ORGANIZE_DONE_MARKER}$?' > "${ORGANIZE_LOG_FILE}" 2>&1 & echo BG_STARTED`;
+    const argStr = isMoveToDownload ? 'move_to_download' : '';
+    const launchCmd = `rm -f "${ORGANIZE_LOG_FILE}"; nohup sh -c 'if [ -f "${SETTINGS_DIR}/action.sh" ]; then sh "${SETTINGS_DIR}/action.sh" ${argStr} 2>&1; else sh "${modulePath}/action.sh" ${argStr} 2>&1; fi; echo ${ORGANIZE_DONE_MARKER}$?' > "${ORGANIZE_LOG_FILE}" 2>&1 & echo BG_STARTED`;
 
-      log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
-      log(`[DEBUG] Launching background action engine...`, 'info');
+    log(`[DEBUG] Target Module Path: ${modulePath}`, 'info');
+    log(`[DEBUG] Launching background action engine...`, 'info');
 
-      const launchRes = shellExec(launchCmd);
+    const launchRes = shellExec(launchCmd);
 
-      if (!launchRes || !launchRes.ok) {
-        log('[DEBUG] Critical Error: Failed to launch background action engine.', 'err');
-        const errMsg = launchRes ? (launchRes.stderr || 'Shell execution failed.') : 'Execution failed';
-        log('Organization error: ' + errMsg, 'err');
-        if (consoleRing) consoleRing.classList.remove('live');
-        setStatus('on', 'ready');
-        organizeRunning = false;
-        return;
-      }
+    if (!launchRes || !launchRes.ok) {
+      log('[DEBUG] Critical Error: Failed to launch background action engine.', 'err');
+      const errMsg = launchRes ? (launchRes.stderr || 'Shell execution failed.') : 'Execution failed';
+      log((isMoveToDownload ? 'Move to Download error: ' : 'Organization error: ') + errMsg, 'err');
+      if (consoleRing) consoleRing.classList.remove('live');
+      setStatus('on', 'ready');
+      organizeRunning = false;
+      return;
+    }
 
-      const { timedOut, exitCode, fullOutput } = await pollOrganizeLog();
+    const { timedOut, exitCode, fullOutput } = await pollOrganizeLog();
 
-      log(`[DEBUG] Shizuku Exit Code: ${exitCode}`, exitCode === 0 ? 'info' : 'err');
+    log(`[DEBUG] Shizuku Exit Code: ${exitCode}`, exitCode === 0 ? 'info' : 'err');
 
-      if (!timedOut && exitCode === 0) {
-        let count = 0;
-        const match = fullOutput.match(/SUCCESS_MOVED_COUNT:(\d+)/);
-        if (match) count = parseInt(match[1], 10) || 0;
+    if (!timedOut && exitCode === 0) {
+      let count = 0;
+      const match = fullOutput.match(/SUCCESS_MOVED_COUNT:(\d+)/);
+      if (match) count = parseInt(match[1], 10) || 0;
 
+      if (isMoveToDownload) {
+        log(`[SUCCESS] Moved ${count} file(s) back to Download folder.`, 'ok');
+      } else {
         organizedFilesCount = count;
         log(`[SUCCESS] Organized ${count} file(s) into category folders.`, 'ok');
-        organizeRunning = false;
-        await performScan();
-      } else {
-        const errMsg = timedOut ? 'Timed out waiting for the action engine to finish.' : `action.sh exited with code ${exitCode}.`;
-        log('Organization error: ' + errMsg, 'err');
-        if (consoleRing) consoleRing.classList.remove('live');
-        setStatus('on', 'ready');
-        organizeRunning = false;
       }
-    };
+      organizeRunning = false;
+      await performScan();
+    } else {
+      const errMsg = timedOut ? 'Timed out waiting for the action engine to finish.' : `action.sh exited with code ${exitCode}.`;
+      log((isMoveToDownload ? 'Move to Download error: ' : 'Organization error: ') + errMsg, 'err');
+      if (consoleRing) consoleRing.classList.remove('live');
+      setStatus('on', 'ready');
+      organizeRunning = false;
+    }
+  }
+
+  if (organizeBtn) {
+    organizeBtn.onclick = () => runActionEngine('organize');
   }
 
   updateTogglesUI();

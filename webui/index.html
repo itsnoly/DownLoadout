@@ -55,6 +55,10 @@
           </button>
 
           <div class="menu-divider"></div>
+          <button class="menu-item danger" id="moveToDownloadBtn">
+            <svg class="icon sm"><use href="#ic-folder"/></svg>
+            <span>Move to Download</span>
+          </button>
           <button class="menu-item danger" id="resetDefaultsBtn">
             <svg class="icon sm"><use href="#ic-refresh"/></svg>
             <span>Reset Variables</span>
@@ -77,6 +81,22 @@
     <div class="card-actions">
       <button class="btn-ghost" id="cancelResetBtn">Cancel</button>
       <button class="btn-solid danger" id="confirmResetBtn">Reset Everything</button>
+    </div>
+  </div>
+
+  <!-- Inline Confirmation Card for Move to Download -->
+  <div class="inline-card danger-card" id="moveDownloadConfirmCard" style="display: none;">
+    <div class="card-head">
+      <svg class="icon danger-icon"><use href="#ic-alert"/></svg>
+      <h2>Move Files to Download?</h2>
+      <button class="card-close-btn" id="closeMoveDownloadCardBtn" aria-label="Close">
+        <svg class="icon"><use href="#ic-x"/></svg>
+      </button>
+    </div>
+    <p class="card-desc">Are you sure you want to move all files from category folders back to /storage/emulated/0/Download?</p>
+    <div class="card-actions">
+      <button class="btn-ghost" id="cancelMoveDownloadBtn">Cancel</button>
+      <button class="btn-solid danger" id="confirmMoveDownloadBtn">Move Files</button>
     </div>
   </div>
 
