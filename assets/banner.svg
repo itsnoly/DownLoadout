@@ -88,7 +88,7 @@
   </g>
 
   <!-- TYPOGRAPHY & LASER UNDERLINE -->
-  <g transform="translate(885, 0) scale(3)">
+  <g transform="translate(710, 0) scale(3)">
     <g filter="url(#textShadow)">
       <text x="0" y="98"
             text-anchor="middle"
