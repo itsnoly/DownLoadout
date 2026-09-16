@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const DEFAULT_RULES = [
     { id:'images', name:'Images', folder:'! - Images', icon:'ic-image', exts:['jpg','jpeg','png','gif','webp','svg','heic','bmp'] },
-    { id:'documents', name:'Documents', folder:'! - Documents', icon:'ic-doc', exts:['pdf','doc','docx','txt','md'] },
+    { id:'documents', name:'Documents', folder:'! - Documents', icon:'ic-document', exts:['pdf','doc','docx','txt','md'] },
     { id:'videos', name:'Videos', folder:'! - Videos', icon:'ic-video', exts:['mp4','mov','avi','mkv','webm'] },
     { id:'audio', name:'Audio', folder:'! - Audio', icon:'ic-music', exts:['mp3','wav','flac','m4a','ogg'] },
     { id:'archives', name:'Archives', folder:'! - Archives', icon:'ic-archive', exts:['zip','rar','7z','tar','gz','bz2','xz','iso','tgz'] },
@@ -102,7 +102,11 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function iconSvg(name, catId) {
-    const safeIcon = /^ic-[a-z0-9-]+$/.test(name || '') ? name : 'ic-file';
+    let iconName = name;
+    if (catId === 'documents' && (!iconName || iconName === 'ic-doc')) {
+      iconName = 'ic-document';
+    }
+    const safeIcon = /^ic-[a-z0-9-]+$/.test(iconName || '') ? iconName : 'ic-file';
     let colorClass = safeIcon;
     if (catId) {
       const safeCat = String(catId).replace(/[^A-Za-z0-9_-]+/g, '');
@@ -479,25 +483,37 @@ document.addEventListener("DOMContentLoaded", function () {
             renderDaysTabs();
             renderLanes();
             updateStats();
-            performScan();
+            setTimeout(() => performScan(), 400);
             return;
           }
         }
         log('Initial setup: Initializing config at ' + SETTINGS_DIR + '/', 'info');
         autoSaveConfig();
-        performScan();
+        setTimeout(() => performScan(), 400);
       } catch(e) {
         autoSaveConfig();
+        setTimeout(() => performScan(), 400);
       }
     }, 50);
   }
 
-  function updateStats() {
+  function updateStats(overridePct = null) {
     if (sFiles) sFiles.textContent = scannedTotalFiles;
     if (sCats) sCats.textContent = configData.rules.length;
     if (sDone) sDone.textContent = organizedFilesCount;
     
-    const pct = scannedTotalFiles > 0 ? Math.min(100, Math.round((organizedFilesCount / scannedTotalFiles) * 100)) : 0;
+    let pct = 0;
+    if (overridePct !== null) {
+      pct = Math.max(0, Math.min(100, overridePct));
+    } else if (scannedTotalFiles === 0 && organizedFilesCount > 0) {
+      pct = 100;
+    } else if (scannedTotalFiles > 0) {
+      const total = scannedTotalFiles + organizedFilesCount;
+      pct = Math.round((organizedFilesCount / total) * 100);
+    } else {
+      pct = 0;
+    }
+
     if (dialPct) dialPct.textContent = pct + '%';
     if (dialProgress) {
       const offset = CIRC - (CIRC * pct) / 100;
@@ -713,16 +729,13 @@ fi
     };
   }
 
-  async function performScan() {
+  async function performScan(updateDial = true) {
     setStatus('busy', 'scanning…');
     if (consoleRing) consoleRing.classList.add('live');
     log('Scanning Download directory...', 'info');
 
-    // Yield one frame so the "Scanning…" status actually paints before the
-    // (synchronous) shell bridge call below runs — without this, the busy
-    // state and the "ready" state land in the same task and the browser
-    // never gets a chance to render the in-between state.
-    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    // Yield so the busy status paints smoothly without freezing the UI
+    await new Promise(resolve => setTimeout(resolve, 30));
 
     const validExts = new Set();
     const destFolders = [];
@@ -773,10 +786,16 @@ fi
 
     if (consoleRing) consoleRing.classList.remove('live');
     setStatus('on', 'ready');
-    updateStats();
+    if (updateDial) {
+      updateStats();
+    } else {
+      if (sFiles) sFiles.textContent = scannedTotalFiles;
+      if (sCats) sCats.textContent = configData.rules.length;
+      if (sDone) sDone.textContent = organizedFilesCount;
+    }
   }
 
-  if (scanBtn) scanBtn.onclick = performScan;
+  if (scanBtn) scanBtn.onclick = () => performScan(true);
 
   // shellExec() is a synchronous bridge call: the JS main thread is blocked
   // for the entire time the shell command takes to return. action.sh moves
@@ -790,7 +809,7 @@ fi
   const ORGANIZE_POLL_MS = 500;
   const ORGANIZE_TIMEOUT_MS = 10 * 60 * 1000;
 
-  function pollOrganizeLog() {
+  function pollOrganizeLog(onLineCallback) {
     return new Promise(resolve => {
       let lastLen = 0;
       let fullOutput = '';
@@ -805,7 +824,10 @@ fi
           lastLen = content.length;
           fullOutput = content;
           chunk.split('\n').forEach(line => {
-            if (line && !line.startsWith(ORGANIZE_DONE_MARKER)) log(line, 'info');
+            if (line && !line.startsWith(ORGANIZE_DONE_MARKER)) {
+              log(line, 'info');
+              if (onLineCallback) onLineCallback(line);
+            }
           });
         }
 
@@ -867,7 +889,27 @@ fi
       return;
     }
 
-    const { timedOut, exitCode, fullOutput } = await pollOrganizeLog();
+    let currentOrganized = 0;
+    const initialToOrganize = scannedTotalFiles;
+    if (!isMoveToDownload && initialToOrganize > 0) {
+      updateStats(0);
+    }
+
+    const onProgressLine = (line) => {
+      if (line.startsWith('[OK] Moved:')) {
+        currentOrganized++;
+        organizedFilesCount = currentOrganized;
+        if (!isMoveToDownload) {
+          const totalTarget = Math.max(currentOrganized, initialToOrganize);
+          const currentPct = totalTarget > 0 ? Math.min(99, Math.round((currentOrganized / totalTarget) * 100)) : 50;
+          updateStats(currentPct);
+        } else {
+          if (sDone) sDone.textContent = currentOrganized;
+        }
+      }
+    };
+
+    const { timedOut, exitCode, fullOutput } = await pollOrganizeLog(onProgressLine);
 
     log(`[DEBUG] Shizuku Exit Code: ${exitCode}`, exitCode === 0 ? 'info' : 'err');
 
@@ -878,12 +920,15 @@ fi
 
       if (isMoveToDownload) {
         log(`[SUCCESS] Moved ${count} file(s) back to Download folder.`, 'ok');
+        organizedFilesCount = 0;
+        updateStats(0);
       } else {
         organizedFilesCount = count;
         log(`[SUCCESS] Organized ${count} file(s) into category folders.`, 'ok');
+        updateStats(100);
       }
       organizeRunning = false;
-      await performScan();
+      await performScan(false);
     } else {
       const errMsg = timedOut ? 'Timed out waiting for the action engine to finish.' : `action.sh exited with code ${exitCode}.`;
       log((isMoveToDownload ? 'Move to Download error: ' : 'Organization error: ') + errMsg, 'err');

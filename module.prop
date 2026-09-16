@@ -1,7 +1,7 @@
 id=downloadout
 name=DownLoadout
-version=v1.0
-versionCode=1
+version=v1.1
+versionCode=2
 author=Landon Moran & Ayumi
 description=Automated Download directory organizer module for Shevery ADB.
 banner=banner.png
