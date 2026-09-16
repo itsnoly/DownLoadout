@@ -1,17 +1,20 @@
 <svg width="1500" height="540" viewBox="0 0 1500 540" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0a1217"/>
       <stop offset="50%" stop-color="#06090d"/>
       <stop offset="100%" stop-color="#020406"/>
     </linearGradient>
 
-    <radialGradient id="ambientGlow" cx="26%" cy="50%" r="60%">
+    <!-- Harmonized Ambient Center Glow -->
+    <radialGradient id="ambientGlow" cx="50%" cy="50%" r="55%">
       <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.18"/>
       <stop offset="50%" stop-color="#0ea5e9" stop-opacity="0.05"/>
       <stop offset="100%" stop-color="#020406" stop-opacity="0"/>
     </radialGradient>
 
+    <!-- Brand Icon Gradient -->
     <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#99f6e4"/>
       <stop offset="35%" stop-color="#2dd4bf"/>
@@ -19,6 +22,7 @@
       <stop offset="100%" stop-color="#0f766e"/>
     </linearGradient>
 
+    <!-- Typography Gradient -->
     <linearGradient id="textGrad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#ffffff"/>
       <stop offset="25%" stop-color="#ccfbf1"/>
@@ -26,6 +30,7 @@
       <stop offset="100%" stop-color="#2dd4bf"/>
     </linearGradient>
 
+    <!-- Laser Accent Line Gradient -->
     <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0"/>
       <stop offset="20%" stop-color="#2dd4bf" stop-opacity="0.4"/>
@@ -34,7 +39,7 @@
       <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0"/>
     </linearGradient>
 
-    <!-- Seamless Clean Glow with wide boundary to prevent square clipping -->
+    <!-- Clean Glow with generous bounding box -->
     <filter id="iconGlow" x="-100%" y="-100%" width="300%" height="300%">
       <feGaussianBlur stdDeviation="1.8" result="blur"/>
       <feMerge>
@@ -47,35 +52,39 @@
       <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.7"/>
     </filter>
 
+    <!-- High-Definition Text Shadow -->
     <filter id="textShadow" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.75"/>
     </filter>
 
+    <!-- Subtle Tech Grid Pattern -->
     <pattern id="techGrid" width="72" height="72" patternUnits="userSpaceOnUse">
       <circle cx="6" cy="6" r="3" fill="#2dd4bf" opacity="0.035"/>
     </pattern>
   </defs>
 
+  <!-- FULL-BLEED BACKGROUND -->
   <rect width="1500" height="540" fill="url(#bgGrad)"/>
   <rect width="1500" height="540" fill="url(#ambientGlow)"/>
   <rect width="1500" height="540" fill="url(#techGrid)"/>
 
+  <!-- SUBTLE FLOATING PARTICLE DOTS -->
   <g opacity="0.45">
-    <circle cx="180" cy="120" r="4" fill="#2dd4bf" opacity="0.5"/>
-    <circle cx="340" cy="420" r="3" fill="#38bdf8" opacity="0.3"/>
-    <circle cx="250" cy="310" r="2" fill="#5eead4" opacity="0.4"/>
+    <circle cx="160" cy="120" r="4" fill="#2dd4bf" opacity="0.5"/>
+    <circle cx="280" cy="420" r="3" fill="#38bdf8" opacity="0.3"/>
+    <circle cx="200" cy="310" r="2" fill="#5eead4" opacity="0.4"/>
     
-    <circle cx="1150" cy="100" r="5" fill="#99f6e4" opacity="0.4"/>
-    <circle cx="1320" cy="380" r="3.5" fill="#2dd4bf" opacity="0.35"/>
-    <circle cx="1020" cy="450" r="2.5" fill="#38bdf8" opacity="0.3"/>
+    <circle cx="1200" cy="100" r="5" fill="#99f6e4" opacity="0.4"/>
+    <circle cx="1340" cy="380" r="3.5" fill="#2dd4bf" opacity="0.35"/>
+    <circle cx="1260" cy="450" r="2.5" fill="#38bdf8" opacity="0.3"/>
     <circle cx="1400" cy="180" r="2" fill="#5eead4" opacity="0.5"/>
     
-    <circle cx="600" cy="80" r="3" fill="#2dd4bf" opacity="0.35"/>
-    <circle cx="900" cy="470" r="4" fill="#38bdf8" opacity="0.4"/>
+    <circle cx="580" cy="70" r="3" fill="#2dd4bf" opacity="0.35"/>
+    <circle cx="920" cy="475" r="4" fill="#38bdf8" opacity="0.4"/>
   </g>
 
-  <!-- BRAND ICON: The exact 3 layers the user liked, floating with seamless glow and zero square borders -->
-  <g filter="url(#iconShadow)" transform="translate(110, 135) scale(5.2)">
+  <!-- BRAND ICON (Perfectly centered lockup component) -->
+  <g filter="url(#iconShadow)" transform="translate(308, 145) scale(5.2)">
     <!-- Base layer -->
     <path d="M6 32l18 9 18-9-18-9-18 9z" fill="url(#markGrad)" opacity="0.3"/>
     <!-- Middle layer -->
@@ -87,8 +96,8 @@
     <circle cx="24" cy="25" r="1.4" fill="#2dd4bf"/>
   </g>
 
-  <!-- TYPOGRAPHY & LASER UNDERLINE -->
-  <g transform="translate(710, 0) scale(3)">
+  <!-- TYPOGRAPHY & LASER UNDERLINE (Symmetrically balanced) -->
+  <g transform="translate(891, 0) scale(3)">
     <g filter="url(#textShadow)">
       <text x="0" y="98"
             text-anchor="middle"
@@ -102,12 +111,13 @@
     </g>
 
     <g opacity="0.95">
-      <line x1="-115" y1="116" x2="115" y2="116" stroke="#2dd4bf" stroke-width="1.5" opacity="0.25"/>
-      <line x1="-98" y1="116" x2="98" y2="116" stroke="url(#lineGrad)" stroke-width="2"/>
-      <circle cx="98" cy="116" r="2.5" fill="#ffffff"/>
+      <line x1="-90" y1="114" x2="90" y2="114" stroke="#2dd4bf" stroke-width="1.5" opacity="0.25"/>
+      <line x1="-75" y1="114" x2="75" y2="114" stroke="url(#lineGrad)" stroke-width="2"/>
+      <circle cx="75" cy="114" r="2.5" fill="#ffffff"/>
     </g>
   </g>
 
+  <!-- TOP LIGHT ACCENTS -->
   <circle cx="225" cy="60" r="5.4" fill="#2dd4bf" opacity="0.4"/>
   <circle cx="1275" cy="60" r="5.4" fill="#38bdf8" opacity="0.4"/>
 </svg>
