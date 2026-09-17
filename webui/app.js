@@ -517,33 +517,12 @@ document.addEventListener("DOMContentLoaded", function () {
           const loadedData = JSON.parse(raw.slice(jsonStart));
           if (loadedData && Array.isArray(loadedData.rules)) {
             loadedData.rules = loadedData.rules.filter(r => r.id !== 'others');
-            
-            // Auto-migrate legacy folder prefix from "! - " to "_"
-            let migrated = false;
-            loadedData.rules.forEach(r => {
-              if (r.folder && r.folder.startsWith('! - ')) {
-                const oldFolder = r.folder;
-                const newFolder = '_' + r.folder.slice(4);
-                
-                // Rename on storage via shell
-                shellExec(`if [ -d "/storage/emulated/0/Download/${oldFolder}" ]; then mv "/storage/emulated/0/Download/${oldFolder}" "/storage/emulated/0/Download/${newFolder}" 2>/dev/null; fi`);
-                
-                r.folder = newFolder;
-                migrated = true;
-              }
-            });
-            
             configData = loadedData;
             configData.target_folder = '/storage/emulated/0/Download';
             if (customIntervalInput && configData.custom_interval) {
               customIntervalInput.value = configData.custom_interval;
             }
-            if (migrated) {
-              log('Migrated legacy "! - " folders to clean "_" prefix.', 'ok');
-              autoSaveConfig();
-            } else {
-              log('Configuration loaded from ' + SETTINGS_DIR + '/', 'ok');
-            }
+            log('Configuration loaded from ' + SETTINGS_DIR + '/', 'ok');
             updateTogglesUI();
             renderHoursTabs();
             renderDaysTabs();
@@ -771,7 +750,7 @@ fi
     el('createCatBtn').onclick = () => {
       const name = el('newCatName') ? el('newCatName').value.trim() : '';
       let folder = el('newCatFolder') ? el('newCatFolder').value.trim() || name : name;
-      if (!folder.startsWith('! - ')) folder = '! - ' + folder;
+      if (!folder.startsWith('_')) folder = '_' + folder;
       folder = safeFolderName(folder);
       const rawExts = el('newCatExts') ? el('newCatExts').value.split(',').map(s => safeExt(s)).filter(Boolean) : [];
       const exts = Array.from(new Set(rawExts));
