@@ -34,12 +34,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "active_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
   "last_run": 0,
   "rules": [
-    {"id":"images","name":"Images","folder":"! - Images","icon":"ic-image","exts":["jpg","jpeg","png","gif","webp","svg","heic","bmp"]},
-    {"id":"documents","name":"Documents","folder":"! - Documents","icon":"ic-doc","exts":["pdf","doc","docx","txt","md"]},
-    {"id":"videos","name":"Videos","folder":"! - Videos","icon":"ic-video","exts":["mp4","mov","avi","mkv","webm"]},
-    {"id":"audio","name":"Audio","folder":"! - Audio","icon":"ic-music","exts":["mp3","wav","flac","m4a","ogg"]},
-    {"id":"archives","name":"Archives","folder":"! - Archives","icon":"ic-archive","exts":["zip","rar","7z","tar","gz","bz2","xz","iso","tgz"]},
-    {"id":"installers","name":"Installers","folder":"Installers","icon":"ic-box","exts":["exe","msi","dmg","pkg","deb","apk","apks"]}
+    {"id":"images","name":"Images","folder":"_Images","icon":"ic-image","exts":["jpg","jpeg","png","gif","webp","svg","heic","bmp"]},
+    {"id":"documents","name":"Documents","folder":"_Documents","icon":"ic-doc","exts":["pdf","doc","docx","txt","md"]},
+    {"id":"videos","name":"Videos","folder":"_Videos","icon":"ic-video","exts":["mp4","mov","avi","mkv","webm"]},
+    {"id":"audio","name":"Audio","folder":"_Audio","icon":"ic-music","exts":["mp3","wav","flac","m4a","ogg"]},
+    {"id":"archives","name":"Archives","folder":"_Archives","icon":"ic-archive","exts":["zip","rar","7z","tar","gz","bz2","xz","iso","tgz"]},
+    {"id":"installers","name":"Installers","folder":"_Installers","icon":"ic-box","exts":["exe","msi","dmg","pkg","deb","apk","apks"]}
   ]
 }
 EOF

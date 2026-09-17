@@ -1,14 +1,14 @@
 document.addEventListener("DOMContentLoaded", function () {
   const DEFAULT_RULES = [
-    { id:'images', name:'Images', folder:'! - Images', icon:'ic-image', exts:['jpg','jpeg','png','gif','webp','svg','heic','bmp'] },
-    { id:'documents', name:'Documents', folder:'! - Documents', icon:'ic-document', exts:['pdf','doc','docx','txt','md'] },
-    { id:'videos', name:'Videos', folder:'! - Videos', icon:'ic-video', exts:['mp4','mov','avi','mkv','webm'] },
-    { id:'audio', name:'Audio', folder:'! - Audio', icon:'ic-music', exts:['mp3','wav','flac','m4a','ogg'] },
-    { id:'archives', name:'Archives', folder:'! - Archives', icon:'ic-archive', exts:['zip','rar','7z','tar','gz','bz2','xz','iso','tgz'] },
-    { id:'installers', name:'Installers', folder:'! - Installers', icon:'ic-box', exts:['exe','msi','dmg','pkg','deb','apk','apks'] },
-    { id:'code', name:'Code & Scripts', folder:'! - Code', icon:'ic-code', exts:['js','html','css','py','json','ts','php','cpp'] },
-    { id:'design', name:'Design Files', folder:'! - Design', icon:'ic-image', exts:['psd','ai','fig','sketch','blend'] },
-    { id:'ebooks', name:'eBooks', folder:'! - eBooks', icon:'ic-doc', exts:['epub','azw3','djvu'] }
+    { id:'images', name:'Images', folder:'_Images', icon:'ic-image', exts:['jpg','jpeg','png','gif','webp','svg','heic','bmp'] },
+    { id:'documents', name:'Documents', folder:'_Documents', icon:'ic-document', exts:['pdf','doc','docx','txt','md'] },
+    { id:'videos', name:'Videos', folder:'_Videos', icon:'ic-video', exts:['mp4','mov','avi','mkv','webm'] },
+    { id:'audio', name:'Audio', folder:'_Audio', icon:'ic-music', exts:['mp3','wav','flac','m4a','ogg'] },
+    { id:'archives', name:'Archives', folder:'_Archives', icon:'ic-archive', exts:['zip','rar','7z','tar','gz','bz2','xz','iso','tgz'] },
+    { id:'installers', name:'Installers', folder:'_Installers', icon:'ic-box', exts:['exe','msi','dmg','pkg','deb','apk','apks'] },
+    { id:'code', name:'Code & Scripts', folder:'_Code', icon:'ic-code', exts:['js','html','css','py','json','ts','php','cpp'] },
+    { id:'design', name:'Design Files', folder:'_Design', icon:'ic-image', exts:['psd','ai','fig','sketch','blend'] },
+    { id:'ebooks', name:'eBooks', folder:'_eBooks', icon:'ic-doc', exts:['epub','azw3','djvu'] }
   ];
 
   const DEFAULT_ACTIVE_IDS = ['images', 'documents', 'videos', 'audio', 'archives', 'installers'];
@@ -517,12 +517,33 @@ document.addEventListener("DOMContentLoaded", function () {
           const loadedData = JSON.parse(raw.slice(jsonStart));
           if (loadedData && Array.isArray(loadedData.rules)) {
             loadedData.rules = loadedData.rules.filter(r => r.id !== 'others');
+            
+            // Auto-migrate legacy folder prefix from "! - " to "_"
+            let migrated = false;
+            loadedData.rules.forEach(r => {
+              if (r.folder && r.folder.startsWith('! - ')) {
+                const oldFolder = r.folder;
+                const newFolder = '_' + r.folder.slice(4);
+                
+                // Rename on storage via shell
+                shellExec(`if [ -d "/storage/emulated/0/Download/${oldFolder}" ]; then mv "/storage/emulated/0/Download/${oldFolder}" "/storage/emulated/0/Download/${newFolder}" 2>/dev/null; fi`);
+                
+                r.folder = newFolder;
+                migrated = true;
+              }
+            });
+            
             configData = loadedData;
             configData.target_folder = '/storage/emulated/0/Download';
             if (customIntervalInput && configData.custom_interval) {
               customIntervalInput.value = configData.custom_interval;
             }
-            log('Configuration loaded from ' + SETTINGS_DIR + '/', 'ok');
+            if (migrated) {
+              log('Migrated legacy "! - " folders to clean "_" prefix.', 'ok');
+              autoSaveConfig();
+            } else {
+              log('Configuration loaded from ' + SETTINGS_DIR + '/', 'ok');
+            }
             updateTogglesUI();
             renderHoursTabs();
             renderDaysTabs();
