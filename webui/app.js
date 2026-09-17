@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let configData = {
     target_folder: '/storage/emulated/0/Download',
-    schedule_hours: 0,
+    schedule_hours: 1,
     custom_interval: '',
     include_subdirs: false,
     show_console_logs: true,
