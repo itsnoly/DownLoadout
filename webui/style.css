@@ -458,6 +458,18 @@ body {
   flex: 1; min-width: 0; background: none; border: none; outline: none;
   color: var(--teal-bright); font-size: 0.7rem; font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600;
 }
+.lane-folder-edit .lane-folder-save-btn {
+  display: none;
+  background: var(--teal-dim); border: 1px solid var(--teal-line); color: var(--teal-bright);
+  border-radius: var(--r-sm); padding: 3px 6px; cursor: pointer; align-items: center; justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.lane-folder-edit .lane-folder-save-btn.visible {
+  display: flex;
+}
+.lane-folder-edit .lane-folder-save-btn:hover {
+  background: var(--teal); color: #0f172a; border-color: var(--teal);
+}
 
 .lane-chips { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .lane-chip {

@@ -67,11 +67,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const addCategoryCard = el('addCategoryCard'), closeAddCatCardBtn = el('closeAddCatCardBtn'), presetGrid = el('presetGrid'), predefinedSection = el('predefinedSection');
   const CIRC = 264;
 
-  // Settings live in their own dedicated directory (public, under Download),
-  // with seamless backward-compatible migration from DownLoadout or legacy dot-folders.
+  // Settings live in their own dedicated directory (public, under Download).
   const SETTINGS_DIR = '/storage/emulated/0/Download/DownTidy';
-  const LEGACY_DOWNLOADOUT_DIR = '/storage/emulated/0/Download/DownLoadout';
-  const LEGACY_SETTINGS_DIR = '/storage/emulated/0/.down-loadout';
+  const LEGACY_DL_DIR = '/storage/emulated/0/Download/DownTidy';
+  const LEGACY_SETTINGS_DIR = '/storage/emulated/0/.downtidy';
   const FOLDER_SAFE_RE = /^[A-Za-z0-9 _,.!-]*$/;
 
   function esc(s) {
@@ -303,7 +302,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function ensureBackgroundService(forceRestart = false) {
     const modulePath = getModulePath();
     const targetService = SETTINGS_DIR + '/service.sh';
-    const cmd = `PID_FILE=/data/local/tmp/downtidy_service.pid; LEGACY_PID_FILE=/data/local/tmp/downloadout_service.pid; rm -f "$LEGACY_PID_FILE" 2>/dev/null; if [ "${forceRestart ? '1' : '0'}" = "1" ]; then OLD_PID=$(cat "$PID_FILE" 2>/dev/null); [ -n "$OLD_PID" ] && kill -9 "$OLD_PID" 2>/dev/null; rm -f "$PID_FILE" 2>/dev/null; fi; if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE" 2>/dev/null) 2>/dev/null; then echo "SERVICE_ALREADY_RUNNING"; else nohup sh -c 'if [ -f "${targetService}" ]; then sh "${targetService}"; elif [ -f "${modulePath}/service.sh" ]; then sh "${modulePath}/service.sh"; fi' >/dev/null 2>&1 & echo "SERVICE_STARTED"; fi`;
+    const cmd = `PID_FILE=/data/local/tmp/downtidy_service.pid; LEGACY_PID_FILE=/data/local/tmp/downtidy_service.pid; rm -f "$LEGACY_PID_FILE" 2>/dev/null; if [ "${forceRestart ? '1' : '0'}" = "1" ]; then OLD_PID=$(cat "$PID_FILE" 2>/dev/null); [ -n "$OLD_PID" ] && kill -9 "$OLD_PID" 2>/dev/null; rm -f "$PID_FILE" 2>/dev/null; fi; if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE" 2>/dev/null) 2>/dev/null; then echo "SERVICE_ALREADY_RUNNING"; else nohup sh -c 'if [ -f "${targetService}" ]; then sh "${targetService}"; elif [ -f "${modulePath}/service.sh" ]; then sh "${modulePath}/service.sh"; fi' >/dev/null 2>&1 & echo "SERVICE_STARTED"; fi`;
     shellExec(cmd);
   }
 
@@ -506,7 +505,7 @@ document.addEventListener("DOMContentLoaded", function () {
       stageActionScript();
       // Settings live in their own directory under Download; migrate the
       // legacy hidden dot-folder location on first load (mirrors action.sh).
-      const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; O=${LEGACY_DOWNLOADOUT_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$O" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; cp "$O" "$M" 2>/dev/null; echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
+      const loadCmd = `M=${SETTINGS_DIR}/conveyor_config.json; O=${LEGACY_DL_DIR}/conveyor_config.json; L=${LEGACY_SETTINGS_DIR}/conveyor_config.json; if [ -f "$M" ]; then echo "CONF=$M"; cat "$M"; elif [ -f "$O" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; cp "$O" "$M" 2>/dev/null; echo "CONF=$M"; cat "$M"; elif [ -f "$L" ]; then mkdir -p ${SETTINGS_DIR} 2>/dev/null; if mv "$L" "$M" 2>/dev/null; then echo "CONF=$M"; cat "$M"; else echo "CONF=$L"; cat "$L"; fi; fi`;
       try {
         const res = shellExec(loadCmd);
         // loadCmd prints a "CONF=<path>" header line before the JSON,
@@ -627,6 +626,9 @@ fi
         <div class="lane-folder-edit">
           <span class="prefix">/</span>
           <input type="text" value="${safeFolder}" data-folder-edit="${safeCatId2}" placeholder="Folder Name">
+          <button type="button" class="lane-folder-save-btn" aria-label="Save folder name" title="Save folder name" data-folder-save="${safeCatId2}">
+            <svg class="icon sm"><use href="#ic-check"/></svg>
+          </button>
         </div>
         <div class="lane-chips">${chipsHtml}</div>
         <div class="lane-add-row">
@@ -645,19 +647,36 @@ fi
     addLane.onclick = () => openAddCategoryInlineCard();
     lanesScroll.appendChild(addLane);
 
+    lanesScroll.querySelectorAll('[data-folder-save]').forEach(btn => {
+      btn.onclick = () => {
+        const catId = btn.dataset.folderSave;
+        const inp = lanesScroll.querySelector(`[data-folder-edit="${catId}"]`);
+        if (inp) handleFolderRename(catId, inp.value);
+      };
+    });
+
     lanesScroll.querySelectorAll('[data-folder-edit]').forEach(inp => {
       const catId = inp.dataset.folderEdit;
+      const cat = configData.rules.find(c => c.id === catId);
+      const saveBtn = lanesScroll.querySelector(`[data-folder-save="${catId}"]`);
+
       inp.oninput = () => {
-        clearTimeout(renameDebounceTimers[catId]);
-        renameDebounceTimers[catId] = setTimeout(() => {
+        if (!cat || !saveBtn) return;
+        const currentVal = inp.value.trim();
+        const initialVal = (cat.folder || '').trim();
+        if (currentVal !== initialVal && currentVal.length > 0) {
+          saveBtn.classList.add('visible');
+        } else {
+          saveBtn.classList.remove('visible');
+        }
+      };
+
+      inp.onkeydown = e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
           handleFolderRename(catId, inp.value);
-        }, 800);
+        }
       };
-      inp.onblur = () => {
-        clearTimeout(renameDebounceTimers[catId]);
-        handleFolderRename(catId, inp.value);
-      };
-      inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
     });
 
     lanesScroll.querySelectorAll('[data-del-ext]').forEach(b => b.onclick = () => {

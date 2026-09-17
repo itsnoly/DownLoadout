@@ -8,10 +8,10 @@ BASE_DIR="${DL_BASE:-/storage/emulated/0}"
 # Module settings live in their own dedicated directory (public, under Download).
 SETTINGS_DIR="$BASE_DIR/Download/DownTidy"
 CONFIG_FILE="$SETTINGS_DIR/conveyor_config.json"
-LEGACY_DL_DIR="$BASE_DIR/Download/DownLoadout"
-LEGACY_DIR="$BASE_DIR/.down-loadout"
+LEGACY_DL_DIR="$BASE_DIR/Download/DownTidy"
+LEGACY_DIR="$BASE_DIR/.downtidy"
 
-# Backward-compatible migration from DownLoadout or legacy dot-folder locations
+# Backward-compatible migration from legacy folder locations
 if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$SETTINGS_DIR" 2>/dev/null
     if [ -f "$LEGACY_DL_DIR/conveyor_config.json" ]; then
