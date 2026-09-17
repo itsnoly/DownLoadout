@@ -275,26 +275,37 @@ document.addEventListener("DOMContentLoaded", function () {
     const modulePath = getModulePath();
     const targetAction = SETTINGS_DIR + '/action.sh';
     const targetService = SETTINGS_DIR + '/service.sh';
+
     if (modulePath) {
-      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && if [ -f "${modulePath}/action.sh" ]; then cp -f "${modulePath}/action.sh" ${targetAction}; fi && if [ -f "${modulePath}/service.sh" ]; then cp -f "${modulePath}/service.sh" ${targetService}; fi && echo STAGED`);
+      const res = shellExec(`mkdir -p "${SETTINGS_DIR}" && cp -f "${modulePath}/action.sh" "${targetAction}" 2>/dev/null; cp -f "${modulePath}/service.sh" "${targetService}" 2>/dev/null; [ -f "${targetAction}" ] && echo STAGED`);
       if (res && res.ok && (res.stdout || '').includes('STAGED')) {
         log('Scripts staged to ' + SETTINGS_DIR, 'info');
         ensureBackgroundService();
         return true;
       }
     }
+
     try {
-      const text = await fetchModuleFile('../action.sh');
-      const b64 = btoa(String.fromCharCode.apply(null, new TextEncoder().encode(text)));
-      const res = shellExec(`mkdir -p ${SETTINGS_DIR} && echo '${b64}' | base64 -d > ${targetAction} && echo STAGED`);
+      const actionText = await fetchModuleFile('../action.sh');
+      const b64Action = btoa(String.fromCharCode.apply(null, new TextEncoder().encode(actionText)));
+      let serviceText = '';
+      try { serviceText = await fetchModuleFile('../service.sh'); } catch (_) {}
+      const b64Service = serviceText ? btoa(String.fromCharCode.apply(null, new TextEncoder().encode(serviceText))) : '';
+
+      const cmd = `mkdir -p "${SETTINGS_DIR}" && echo '${b64Action}' | base64 -d > "${targetAction}" && ` +
+        (b64Service ? `echo '${b64Service}' | base64 -d > "${targetService}" && ` : '') +
+        `[ -f "${targetAction}" ] && echo STAGED`;
+
+      const res = shellExec(cmd);
       if (res && res.ok && (res.stdout || '').includes('STAGED')) {
-        log('Action script staged to ' + targetAction + ' (app-side copy)', 'info');
+        log('Action script staged to ' + targetAction + ' (WebUI bridge copy)', 'info');
         ensureBackgroundService();
         return true;
       }
     } catch (err) {
       log('Could not stage action.sh: ' + err.message, 'err');
     }
+
     ensureBackgroundService();
     return false;
   }
