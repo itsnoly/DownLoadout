@@ -68,7 +68,8 @@ cd "$TARGET_DIR" || exit 1
 LOCK_DIR="$TMPDIR/downtidy.lock"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     LOCK_AGE=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || echo 0)
-    if [ $(( $(date +%s) - LOCK_AGE )) -gt 600 ]; then
+    NOW_SEC=$(date +%s)
+    if [ $(( NOW_SEC - LOCK_AGE )) -gt 600 ]; then
         rm -rf "$LOCK_DIR" 2>/dev/null
         mkdir "$LOCK_DIR" 2>/dev/null || { echo "[INFO] Another organization run is already in progress. Skipping."; exit 0; }
     else
@@ -78,31 +79,27 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 
 PAIRS_FILE="$TMPDIR/downtidy_pairs.$$"
-COUNT_FILE="$TMPDIR/downtidy_count.$$"
-echo 0 > "$COUNT_FILE"
+MOVES_FILE="$TMPDIR/downtidy_moves.$$"
 
 cleanup() {
     rm -rf "$LOCK_DIR" 2>/dev/null
-    rm -f "$PAIRS_FILE" "$COUNT_FILE" 2>/dev/null
+    rm -f "$PAIRS_FILE" "$MOVES_FILE" 2>/dev/null
 }
 trap cleanup EXIT HUP INT TERM
 
 # --- Config parsing ---
 INCLUDE_SUBDIRS=$(grep -o '"include_subdirs"[[:space:]]*:[[:space:]]*[a-z]*' "$CONFIG_FILE" | grep -o 'true\|false' || echo "false")
 
-# Folder names from the config are interpolated into commands; enforce a safe
-# charset (letters, digits, space, underscore, dot, bang, comma, hyphen).
+# Folder names from the config are interpolated into commands; enforce a safe charset.
 valid_folder() {
-    # mksh cannot parse a space inside a bracket class, so delete the safe
-    # character set instead: whatever remains is an unsafe character.
     [ -n "$1" ] || return 1
     rest=$(printf '%s' "$1" | tr -d ' A-Za-z0-9_,.!-')
     [ -z "$rest" ]
 }
 
-# Build a sanitized ext -> folder map as a temp pairs file instead of eval'ing
-# variable assignments from config data.
 TAB=$(printf '\t')
+
+# Build ext -> folder map in AWK
 generate_pairs() {
     > "$PAIRS_FILE"
     tr -d '\r\n' < "$CONFIG_FILE" | awk -v RS='}' -v OFS="$TAB" '
@@ -127,61 +124,48 @@ generate_pairs() {
             if (ext != "" && r_folder != "") print ext OFS r_folder;
           }
         }
-      }' 2>/dev/null | while IFS="$TAB" read -r e f; do
-        [ -z "$e" ] && continue
-        if valid_folder "$f"; then
-            printf '%s\t%s\n' "$e" "$f" >> "$PAIRS_FILE"
-        else
-            echo "[WARN] Skipped rule with unsafe folder name in config: $(printf '%s' "$f" | tr -cd '[:print:]')" >&2
-        fi
-    done
+      }' 2>/dev/null > "$PAIRS_FILE"
 }
 generate_pairs
 
-# Look up the target folder for an extension (exact match, first rule wins).
-ext_folder() {
-    awk -F"$TAB" -v key="$1" 'NF == 2 && $1 == key { print $2; exit }' "$PAIRS_FILE"
-}
-
-# Unique dest folder names, newline-separated (space-safe: exact-name matching).
+# Pre-fetch destination folders list
 DEST_FOLDERS=$( (grep -o '"folder"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | sed -E 's/.*"folder"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/'; awk -F"$TAB" 'NF == 2 { print $2 }' "$PAIRS_FILE" 2>/dev/null) | sort -u )
+
+# Ensure all destination folders exist once beforehand to minimize mkdir calls
+while IFS= read -r df; do
+    [ -z "$df" ] && continue
+    if valid_folder "$df"; then
+        mkdir -p "$df" 2>/dev/null
+    fi
+done <<EOF
+$DEST_FOLDERS
+EOF
 
 is_incomplete_file() {
     case "$1" in
         .*|conveyor_config.json) return 0 ;;
-        *.crdownload|*.part|*.tmp|*.download|*.aria2|*.ubdownload|*.gdownload|*!ut) return 0 ;;
+        *.crdownload|*.part|*.tmp|*.temp|*.download|*.aria2|*.ubdownload|*.gdownload|*!ut|*.utdownload|*.ytdl|*.fdmdownload|*.opdownload|*.tdownload|*.mega|*.megadownload|*.1dm|*.idm|*.fcur|*.cur|*.enc.tmp) return 0 ;;
     esac
-    return 1
-}
-
-is_dest_folder() {
-    while IFS= read -r df; do
-        [ -z "$df" ] && continue
-        [ "$1" = "$df" ] && return 0
-    done <<EOF
-$DEST_FOLDERS
-EOF
     return 1
 }
 
 move_with_conflict_handling() {
     src_file="$1"
     dest_dir="$2"
-    filename=$(basename "$src_file")
+    filename="${src_file##*/}"
 
     target_path="$dest_dir/$filename"
 
     if [ -e "$target_path" ]; then
         ext="${filename##*.}"
         [ "$ext" = "$filename" ] && ext=""
-        ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_')
         base="${filename%.*}"
         count=1
-        if [ -n "$ext_lower" ]; then
-            target_path="$dest_dir/${base}_${count}.${ext_lower}"
+        if [ -n "$ext" ]; then
+            target_path="$dest_dir/${base}_${count}.${ext}"
             while [ -e "$target_path" ]; do
                 count=$((count + 1))
-                target_path="$dest_dir/${base}_${count}.${ext_lower}"
+                target_path="$dest_dir/${base}_${count}.${ext}"
             done
         else
             target_path="$dest_dir/${base}_${count}"
@@ -193,13 +177,12 @@ move_with_conflict_handling() {
     fi
 
     if mv "$src_file" "$target_path" 2>/dev/null; then
-        moved=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
-        moved=$((moved + 1))
-        echo "$moved" > "$COUNT_FILE"
         return 0
     fi
     return 1
 }
+
+MOVED_COUNT=0
 
 # Execute dedicated action: move_to_download
 if [ "$ACTION" = "move_to_download" ]; then
@@ -217,6 +200,8 @@ $d"
 
     ALL_FOLDERS=$( (echo "$CONFIG_FOLDERS"; echo "$PAIR_FOLDERS"; echo "$DIR_FOLDERS") | sort -u )
 
+    NOW_SEC=$(date +%s)
+
     OLD_IFS="$IFS"
     IFS='
 '
@@ -231,20 +216,26 @@ $d"
         for filepath in "$df"/*; do
             [ -e "$filepath" ] || continue
             [ -f "$filepath" ] || continue
-            filename=$(basename "$filepath")
+            filename="${filepath##*/}"
 
             if is_incomplete_file "$filename"; then
                 continue
             fi
 
+            # Check active file write (modified in last 3 seconds)
+            MTIME=$(stat -c %Y "$filepath" 2>/dev/null || echo 0)
+            if [ $(( NOW_SEC - MTIME )) -lt 3 ]; then
+                continue
+            fi
+
             if move_with_conflict_handling "$filepath" "$TARGET_DIR"; then
+                MOVED_COUNT=$((MOVED_COUNT + 1))
                 echo "[OK] Moved: $df/$filename -> Download/"
             fi
         done
     done
     IFS="$OLD_IFS"
 
-    MOVED_COUNT=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
     echo "[SUCCESS] Execution completed. $MOVED_COUNT file(s) moved to Download."
     echo "SUCCESS_MOVED_COUNT:$MOVED_COUNT"
     exit 0
@@ -253,83 +244,100 @@ fi
 # Execute default action: organize
 echo "[INFO] Scanning for organizeable files..."
 
+CURRENT_TIME=$(date +%s)
+
+# Single-pass AWK engine to scan directory and resolve file mapping with maximum speed
 case "$INCLUDE_SUBDIRS" in
     true)
-        PRUNE_EXPR=""
-        while IFS= read -r df; do
-            [ -z "$df" ] && continue
-            if valid_folder "$df"; then
-                if [ -z "$PRUNE_EXPR" ]; then
-                    PRUNE_EXPR="-name \"$df\""
-                else
-                    PRUNE_EXPR="$PRUNE_EXPR -o -name \"$df\""
-                fi
-            fi
-        done <<EOF
-$DEST_FOLDERS
-EOF
-        if [ -n "$PRUNE_EXPR" ]; then
-            FIND_EXPR="\\( -name \".?*\" -o $PRUNE_EXPR \\) -prune -o -type f"
-        else
-            FIND_EXPR="\\( -name \".?*\" \\) -prune -o -type f"
-        fi
-        run_find() { eval "find . $FIND_EXPR -print"; }
+        FIND_CMD="find . -type f"
         ;;
     *)
-        run_find() { find . -maxdepth 1 -type f -print; }
+        FIND_CMD="find . -maxdepth 1 -type f"
         ;;
 esac
 
-run_find 2>/dev/null | while IFS= read -r filepath; do
-    [ -z "$filepath" ] && continue
-    filename=$(basename "$filepath")
+$FIND_CMD 2>/dev/null | awk -F"\t" -v pairs_file="$PAIRS_FILE" -v inc_sub="$INCLUDE_SUBDIRS" -v dest_folders="$DEST_FOLDERS" '
+BEGIN {
+  while ((getline line < pairs_file) > 0) {
+    n = split(line, parts, "\t")
+    if (n == 2) {
+      ext_map[tolower(parts[1])] = parts[2]
+    }
+  }
+  close(pairs_file)
 
-    if is_incomplete_file "$filename"; then
+  n_df = split(dest_folders, df_arr, "\n")
+  for (i = 1; i <= n_df; i++) {
+    if (df_arr[i] != "") is_dest[df_arr[i]] = 1
+  }
+}
+{
+  filepath = $0
+  sub(/^\.\//, "", filepath)
+  
+  # Extract dirpath & filename
+  n = split(filepath, parts, "/")
+  filename = parts[n]
+  
+  # Ignore hidden files, config, and incomplete download extensions
+  if (filename ~ /^\./ || filename == "conveyor_config.json") next;
+  if (filename ~ /\.(crdownload|part|tmp|temp|download|aria2|ubdownload|gdownload|ytdl|fdmdownload|opdownload|tdownload|mega|megadownload|1dm|idm|fcur|cur|enc\.tmp)$/ || filename ~ /!ut$/) next;
+
+  # If in subdirectory mode, check if file is already inside a destination folder
+  if (n > 1) {
+    top_dir = parts[1]
+    if (is_dest[top_dir]) next;
+  }
+
+  ext = ""
+  sec_ext = ""
+  if (filename ~ /\./) {
+    n_ext = split(filename, ext_parts, ".")
+    if (n_ext > 1) {
+      ext = tolower(ext_parts[n_ext])
+      if (n_ext > 2) sec_ext = tolower(ext_parts[n_ext - 1])
+    }
+  }
+
+  gsub(/[^a-z0-9_]/, "", ext)
+  gsub(/[^a-z0-9_]/, "", sec_ext)
+
+  dest = ext_map[ext]
+
+  if (ext == "bak" || dest == "") {
+    if (sec_ext != "") {
+      sec_dest = ext_map[sec_ext]
+      if (sec_dest != "") dest = sec_dest;
+    }
+  }
+
+  if (dest != "") {
+    print filepath "\t" dest
+  }
+}
+' > "$MOVES_FILE"
+
+while IFS="$TAB" read -r filepath dest; do
+    [ -z "$filepath" ] && continue
+    filename="${filepath##*/}"
+
+    # Skip files modified in the last 3 seconds (actively being written/downloaded)
+    MTIME=$(stat -c %Y "$filepath" 2>/dev/null || echo 0)
+    if [ $(( CURRENT_TIME - MTIME )) -lt 3 ]; then
         continue
     fi
 
-    # Skip files that already live inside a destination folder (subdir mode)
-    dirpath=$(dirname "$filepath")
-    if [ "$dirpath" != "." ]; then
-        top_dir=$(echo "$dirpath" | cut -d'/' -f2)
-        if is_dest_folder "$top_dir"; then
-            continue
-        fi
-    fi
-
-    ext="${filename##*.}"
-    [ "$ext" = "$filename" ] && ext=""
-    ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_')
-
-    dest=$(ext_folder "$ext_lower")
-
-    # Handle secondary backup extensions (e.g. .png.bak)
-    if [ "$ext_lower" = "bak" ] || [ -z "$dest" ]; then
-        stem="${filename%.*}"
-        sec_ext="${stem##*.}"
-        if [ "$sec_ext" != "$stem" ] && [ -n "$sec_ext" ]; then
-            sec_ext_lower=$(echo "$sec_ext" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_')
-            if [ -z "$dest" ]; then
-                dest=$(ext_folder "$sec_ext_lower")
-            fi
-        fi
-    fi
-
-    # Ignore unmapped files when no category rule matches
-    [ -z "$dest" ] && continue
     if ! valid_folder "$dest"; then
         echo "[WARN] Skipped file with unsafe target folder: $filename" >&2
         continue
     fi
 
-    mkdir -p "$dest" || continue
-
     if move_with_conflict_handling "$filepath" "$dest"; then
+        MOVED_COUNT=$((MOVED_COUNT + 1))
         echo "[OK] Moved: $filename -> $dest/"
     fi
-done
+done < "$MOVES_FILE"
 
-MOVED_COUNT=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
 echo "[SUCCESS] Execution completed. $MOVED_COUNT file(s) organized."
 echo "SUCCESS_MOVED_COUNT:$MOVED_COUNT"
 exit 0
